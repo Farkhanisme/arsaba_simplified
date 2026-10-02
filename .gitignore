@@ -1,0 +1,10 @@
+node_modules/
+.next/
+dist/
+build/
+.data/
+data/*.db
+data/*.db-journal
+.env
+.env.local
+.vercel
