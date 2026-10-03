@@ -52,9 +52,26 @@ describe('penjaga geser-ganda (BUG-01)', () => {
     const geserGanda = serialisasiWIB(sekarangWIB());
     expect(selisihMenit(geserGanda, benar)).toBe(420); // tepat 7 jam
 
-    const t = serialisasiWIB();
-    expect(tanggalWIB(sekarangWIB())).not.toBe(t.slice(0, 10)); // bisa bergeser sehari
+    // Bahwa hal itu bisa menggeser TANGGAL harus diuji dengan instant yang
+    // PASTI di sisi tengah malam — bukan memakai "sekarang".
+    //
+    // Versi pertama tes ini memakai serialisasiWIB() lalu membandingkannya dengan
+    // tanggal hari ini. Itu SALAH: pergeseran +7 jam hanya melewati tengah malam
+    // kalau waktu WIB berada antara 00:00 dan 07:00. Di luar rentang itu tanggalnya
+    // tetap sama, jadi tesnya lulus-atau-gagal tergantung jam dijalankan.
+    // Ternyata waktu 01:04 WIB dan tesnya gagal karena itu.
+    //
+    // Diperbaiki dengan instants tetap yang dipilih supaya pergeserannya
+    // selalu melewati tengah malam, jadi hasilnya sama pada jam berapa pun.
+    expect(tanggalWIB('2026-10-02T20:00:00+07:00')).toBe('2026-10-02');
+    expect(tanggalWIB(sekarangWIB())).not.toBe('2026-01-01'); // sanity: bukan tanggal tetap
+    expect(tanggalWIB(sebagaiWaktuPagi('2026-10-02T23:00:00+07:00'))).toBe('2026-10-03');
   });
+
+/** nowWIB() untuk instants tetap: meniru Date yang sudah digeser +07:00. */
+function sebagaiWaktuPagi(instant: string): Date {
+  return new Date(Date.parse(instant) + 7 * 3600 * 1000);
+}
 
   it('hasil serialisasiWIB() selalu offset +07:00 yang konsisten', () => {
     // Kalau ada yang menggeser dengan cara lain (mis. getTimezoneOffset lokal),

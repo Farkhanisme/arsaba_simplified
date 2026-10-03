@@ -3,6 +3,7 @@
 import { Suspense, useCallback, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
+import { AksesDitolak, adalahAksesDitolak } from '../komponen';
 import type { KartuRingkasan } from '../../../server/aturan/rekap';
 
 export interface HasilPemeriksaan {
@@ -82,6 +83,7 @@ function HalamanRekap() {
   const [data, setData] = useState<DataRekap | null>(null);
   const [memuat, setMemuat] = useState(false);
   const [galat, setGalat] = useState<string | null>(null);
+  const [aksesDitolak, setAksesDitolak] = useState(false);
   const [pesan, setPesan] = useState<string | null>(null);
   const [mengunduh, setMengunduh] = useState(false);
 
@@ -112,9 +114,14 @@ function HalamanRekap() {
     setMemuat(true);
     setGalat(null);
     setPesan(null);
+    setAksesDitolak(false);
     try {
       const res = await fetch(`/api/admin/rekap?dari=${dari}&sampai=${sampai}${tokoId ? `&toko_id=${tokoId}` : ''}`);
       if (!res.ok) {
+        if (await adalahAksesDitolak(res)) {
+          setAksesDitolak(true);
+          return;
+        }
         const b = await res.json().catch(() => null);
         throw new Error((b?.pesan as string) ?? 'Gagal membuat rekap.');
       }
@@ -182,6 +189,8 @@ function HalamanRekap() {
 
       {memuat ? (
         <p>Memuat…</p>
+      ) : aksesDitolak ? (
+        <AksesDitolak />
       ) : galat ? (
         <div><p role="alert">{galat}</p><button type="button" onClick={periksa}>Coba lagi</button></div>
       ) : data ? (

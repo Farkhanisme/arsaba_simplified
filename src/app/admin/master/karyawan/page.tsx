@@ -2,7 +2,7 @@
 
 import { Suspense, useCallback, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Toast, pesanGalat, type Pesan } from '../../komponen';
+import { Toast, pesanGalat, AksesDitolak, adalahAksesDitolak, type Pesan } from '../../komponen';
 
 interface Karyawan {
   id: number;
@@ -43,6 +43,7 @@ function HalamanKaryawan() {
   const [tokoKaryawan, setTokoKaryawan] = useState<Record<number, string>>({});
   const [linkKaryawan, setLinkKaryawan] = useState<Record<number, InfoLink | null>>({});
   const [pesan, setPesan] = useState<Pesan | null>(null);
+  const [aksesDitolak, setAksesDitolak] = useState(false);
   const [form, setForm] = useState(KOSONG);
   const [suntingId, setSuntingId] = useState<number | null>(null);
   const [sunting, setSunting] = useState(KOSONG);
@@ -51,6 +52,10 @@ function HalamanKaryawan() {
   const muat = useCallback(async () => {
     const [rk, rt] = await Promise.all([fetch('/api/admin/master/karyawan'), fetch('/api/admin/master/toko')]);
     if (!rk.ok) {
+      if (await adalahAksesDitolak(rk)) {
+        setAksesDitolak(true);
+        return;
+      }
       setPesan({ jenis: 'galat', teks: await pesanGalat(rk, 'Gagal memuat karyawan.') });
       return;
     }
@@ -221,6 +226,7 @@ function HalamanKaryawan() {
     <div>
       <h1 style={{ marginTop: 0 }}>Data Master — Karyawan</h1>
       <Toast pesan={pesan} onTutup={() => setPesan(null)} />
+      {aksesDitolak ? <AksesDitolak /> : null}
 
       <form onSubmit={tambah} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 8, marginBottom: 16, background: '#fff', padding: 12, border: '1px solid #ddd' }}>
         <label>Nama*<br /><input value={form.nama} onChange={(e) => setForm({ ...form, nama: e.target.value })} required maxLength={200} style={{ padding: 8, width: '90%' }} /></label>

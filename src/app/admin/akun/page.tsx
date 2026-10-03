@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { Toast, pesanGalat, type Pesan } from '../komponen';
+import { Toast, pesanGalat, AksesDitolak, adalahAksesDitolak, type Pesan } from '../komponen';
 
 interface Akun {
   id: number;
@@ -17,10 +17,15 @@ export default function HalamanAkun() {
   const [form, setForm] = useState({ username: '', password: '', nama: '', peran: 'ADMIN' });
   const [passwordSekali, setPasswordSekali] = useState<{ username: string; password: string } | null>(null);
   const [reset, setReset] = useState<{ id: number; username: string; password: string } | null>(null);
+  const [aksesDitolak, setAksesDitolak] = useState(false);
 
   const muat = useCallback(async () => {
     const res = await fetch('/api/admin/akun');
     if (!res.ok) {
+      if (await adalahAksesDitolak(res)) {
+        setAksesDitolak(true);
+        return;
+      }
       setPesan({ jenis: 'galat', teks: await pesanGalat(res, 'Gagal memuat akun.') });
       return;
     }
@@ -98,6 +103,7 @@ export default function HalamanAkun() {
     <div>
       <h1 style={{ marginTop: 0 }}>Akun Admin</h1>
       <Toast pesan={pesan} onTutup={() => setPesan(null)} />
+      {aksesDitolak ? <AksesDitolak /> : null}
 
       {passwordSekali ? (
         <div role="status" style={{ background: '#fef9c3', border: '1px solid #facc15', padding: 12, borderRadius: 6, marginBottom: 12 }}>

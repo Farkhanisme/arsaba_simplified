@@ -41,7 +41,8 @@ Kerjakan berurutan. Setiap milestone selesai jika kriterianya terpenuhi **dan** 
 | M5 | Jadwal: grid hari/minggu/bulan, isi massal, perubahan khusus satu hari, peringatan | US-A3 lulus; snapshot slot; unik per karyawan-tanggal | K-27, K-37, K-55 | **SELESAI** 2026-10-03 |
 | M6 | Tandai tidak berangkat | US-A4 lulus; blokir saat ada event aktif; absen diblokir saat tanggal bertanda | K-19, K-31, K-32, K-56 | **SELESAI** 2026-10-03 |
 | M7 | Dashboard | Metrik `02` §12 sesuai data uji | K-22, K-28, K-30, K-36 | **SELESAI** 2026-10-03 |
-| M8 | Rekap, pemeriksaan pra-syarat, ekspor Excel, `log_ekspor`, penguncian periode | US-A7 lulus; ekspor diblokir di server bila ada `MENUNGGU`/check-in terbuka | K-32, K-33 | prompt siap |
+| M8 | Rekap, pemeriksaan pra-syarat, ekspor Excel, `log_ekspor`, penguncian periode | US-A7 lulus; ekspor diblokir di server bila ada `MENUNGGU`/check-in terbuka | K-32, K-33 **SELESAI** 2026-10-03 |
+| UI-1 | Pondasi desain + dashboard (Tailwind v4 + shadcn) | Mode gelap, grafik Recharts v3 | — | prompt siap |
 | M9 | Audit log UI, hardening, aksesibilitas, QA menyeluruh | Semua acceptance criteria di `01` terpenuhi; daftar tes `03` §13 lulus | — | — |
 
 Jika sebuah milestone terblokir sebagian, kerjakan bagian yang tidak terblokir dan catat sisanya di `OPEN_QUESTIONS.md`.

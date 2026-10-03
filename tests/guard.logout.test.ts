@@ -130,10 +130,21 @@ describe('guard + logout (Fix C)', () => {
     }
   });
 
-  it('guard menolak Origin kosong di route terlindungi', async () => {
+  it('GET tanpa Origin LOLOS (browser same-origin tidak mengirimnya)', async () => {
+    // BUG-UI-05. Aturan proyek (rules/03 §9.4): "cek Origin PADA MUTASI".
+    // GET same-origin tidak membawa header Origin sama sekali, jadi menjoloknya
+    // membuat seluruh UI admin tidak bisa dipakai di browser.
     const cookie = await login();
     const res = await adminTestRoute(req('/api/admin/test', { cookie, origin: null }));
+    expect(res.status).toBe(200);
+  });
+
+  it('MUTASI tanpa Origin tetap DITOLAK 403', async () => {
+    // Penyeimbangnya: proteksi CSRF yang sesungguhnya tidak boleh kendur.
+    const cookie = await login();
+    const res = await logoutRoute(req('/api/logout', { method: 'POST', cookie, origin: null }));
     expect(res.status).toBe(403);
+    expect((await res.json()).kode).toBe('ORIGIN_TIDAK_VALID');
   });
 
   it('guard menolak tanpa sesi dan dengan cookie rusak', async () => {

@@ -40,15 +40,20 @@ describe('izin M1', () => {
   });
 
   it('cek Origin dijalankan lewat route, bukan dibaca dari teks file', async () => {
+    // BUG-UI-05: GET same-origin tidak membawa Origin, jadi Origin kosong pada GET
+    // lanjut ke pemeriksaan sesi (401 TANPA_SESI), bukan 403.
     const tanpaOrigin = await adminTestRoute(req());
-    expect(tanpaOrigin.status).toBe(403);
-    expect((await tanpaOrigin.json()).kode).toBe('ORIGIN_TIDAK_VALID');
+    expect(tanpaOrigin.status).toBe(401);
+    expect((await tanpaOrigin.json()).kode).toBe('TANPA_SESI');
 
+    // Kalau Origin DIKIRIM, samanya harus persis — untuk GET maupun mutasi.
     const berawalanSama = await adminTestRoute(req({ origin: `${APP_ORIGIN}.penyerang.com` }));
     expect(berawalanSama.status).toBe(403);
+    expect((await berawalanSama.json()).kode).toBe('ORIGIN_TIDAK_VALID');
 
     const httpBukanHttps = await adminTestRoute(req({ origin: APP_ORIGIN.replace('https://', 'http://') }));
     expect(httpBukanHttps.status).toBe(403);
+    expect((await httpBukanHttps.json()).kode).toBe('ORIGIN_TIDAK_VALID');
   });
 
   it('matriks izin sesuai rules/02 §13', () => {

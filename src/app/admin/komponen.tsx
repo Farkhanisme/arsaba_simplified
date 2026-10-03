@@ -49,10 +49,38 @@ export function Toast({ pesan, onTutup }: { pesan: Pesan | null; onTutup: () => 
 /** Membaca pesan galat { kode, pesan } dari respons JSON. */
 export async function pesanGalat(res: Response, bawaan: string): Promise<string> {
   try {
-    const data = await res.json();
+    const data = await res.clone().json();
     if (typeof data?.pesan === 'string' && data.pesan.length > 0) return data.pesan;
   } catch {
     /* abaikan */
   }
   return bawaan;
+}
+
+/**
+ * True bila respons adalah 403 AKSES_DITOLAK (peran tidak cukup, K-22).
+ * Memakai clone() supaya body asli tetap bisa dibaca pemanggil.
+ */
+export async function adalahAksesDitolak(res: Response): Promise<boolean> {
+  if (res.status !== 403) return false;
+  try {
+    const data = await res.clone().json();
+    return (data as { kode?: unknown })?.kode === 'AKSES_DITOLAK';
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Keadaanpengganti halaman saat API menjawab 403 AKSES_DITOLAK (BUG-UI-03):
+ * pesan jelas, bukan layar kosong. Server tetap yang menolak — ini hanya
+ * tampilannya.
+ */
+export function AksesDitolak() {
+  return (
+    <div role="alert" style={{ background: '#fff', border: '1px solid #ddd', borderRadius: 8, padding: 24, maxWidth: 480 }}>
+      <h1 style={{ fontSize: 18, margin: '0 0 8px' }}>Akses ditolak</h1>
+      <p style={{ margin: 0 }}>Anda tidak punya akses ke halaman ini.</p>
+    </div>
+  );
 }

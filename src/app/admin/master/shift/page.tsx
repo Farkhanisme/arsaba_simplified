@@ -2,7 +2,7 @@
 
 import { Suspense, useCallback, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Toast, pesanGalat, type Pesan } from '../../komponen';
+import { Toast, pesanGalat, AksesDitolak, adalahAksesDitolak, type Pesan } from '../../komponen';
 
 interface Toko {
   id: number;
@@ -33,6 +33,7 @@ function HalamanShift() {
   const [daftarToko, setDaftarToko] = useState<Toko[]>([]);
   const [daftar, setDaftar] = useState<Shift[]>([]);
   const [pesan, setPesan] = useState<Pesan | null>(null);
+  const [aksesDitolak, setAksesDitolak] = useState(false);
   const [form, setForm] = useState({ nama: '', tipe_hari: 'SEMUA', jam_mulai: '', jam_selesai: '' });
   const [sunting, setSunting] = useState<Shift | null>(null);
 
@@ -44,6 +45,10 @@ function HalamanShift() {
   const muat = useCallback(async () => {
     const res = await fetch(`/api/admin/master/shift${tokoId ? `?toko_id=${encodeURIComponent(tokoId)}` : ''}`);
     if (!res.ok) {
+      if (await adalahAksesDitolak(res)) {
+        setAksesDitolak(true);
+        return;
+      }
       setPesan({ jenis: 'galat', teks: await pesanGalat(res, 'Gagal memuat shift.') });
       return;
     }
@@ -96,6 +101,7 @@ function HalamanShift() {
     <div>
       <h1 style={{ marginTop: 0 }}>Data Master — Shift</h1>
       <Toast pesan={pesan} onTutup={() => setPesan(null)} />
+      {aksesDitolak ? <AksesDitolak /> : null}
 
       <div style={{ marginBottom: 12 }}>
         <label htmlFor="filter-toko">Toko: </label>

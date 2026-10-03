@@ -1,41 +1,29 @@
 'use client';
 
-import { Fragment, Suspense, useCallback, useEffect, useMemo, useState } from 'react';
+import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-
-interface Keterlambatan {
-  n: number;
-  slot: { nama: string; jam_mulai: string; jam_selesai: string } | null;
-  selisih: number | null;
-  terlambatSistem: boolean;
-}
-
-interface Baris {
-  id: number;
-  karyawan_id: number;
-  karyawan_nama: string;
-  toko_id: number;
-  toko_nama: string;
-  tanggal: string;
-  jenis: 'CHECKIN' | 'CHECKOUT';
-  checkin_id: number | null;
-  waktu: string;
-  sumber: string;
-  foto_file_id: string | null;
-  lat: number | null;
-  lng: number | null;
-  lokasi_status: string;
-  status: string;
-  alasan_tolak: string | null;
-  keterlambatan_final_menit: number | null;
-  alasan_koreksi: string | null;
-  keterlambatan: Keterlambatan | null;
-}
-
-function tanggalPendek(isoTanggal: string): string {
-  const [y, m, d] = isoTanggal.split('-');
-  return `${d}/${m}/${y}`;
-}
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { AksesDitolak, adalahAksesDitolak } from '../komponen';
+import {
+  IsiDialogKoreksi,
+  IsiDialogTolak,
+  IsiLightbox,
+  PanelAksiMassal,
+  PanelFilterVerifikasi,
+  PanelGalat,
+  PanelMemuat,
+  DaftarKartuVerifikasi,
+  kelompokkan,
+  type Baris,
+  type FilterVerifikasi,
+  type Pilihan,
+} from './komponen';
 
 function HalamanVerifikasi() {
   const router = useRouter();
@@ -44,7 +32,8 @@ function HalamanVerifikasi() {
   const [ambang, setAmbang] = useState(5);
   const [memuat, setMemuat] = useState(true);
   const [galat, setGalat] = useState<string | null>(null);
-  const [pilihan, setPilihan] = useState<{ toko: { id: number; nama: string }[]; karyawan: { id: number; nama: string }[] }>({ toko: [], karyawan: [] });
+  const [aksesDitolak, setAksesDitolak] = useState(false);
+  const [pilihan, setPilihan] = useState<Pilihan>({ toko: [], karyawan: [] });
   const [pilih, setPilih] = useState<number[]>([]);
   const [finalInput, setFinalInput] = useState<Record<number, string>>({});
   const [dialogTolak, setDialogTolak] = useState<{ ids: number[] } | null>(null);
@@ -58,12 +47,17 @@ function HalamanVerifikasi() {
   const muat = useCallback(async () => {
     setMemuat(true);
     setGalat(null);
+    setAksesDitolak(false);
     try {
       const [rDaftar, rPilih] = await Promise.all([
         fetch(`/api/admin/verifikasi?${query}`),
         fetch('/api/admin/verifikasi/pilihan'),
       ]);
       if (!rDaftar.ok) {
+        if (await adalahAksesDitolak(rDaftar)) {
+          setAksesDitolak(true);
+          return;
+        }
         const b = await rDaftar.json().catch(() => null);
         throw new Error((b?.pesan as string) ?? 'Gagal memuat data.');
       }
@@ -183,243 +177,138 @@ function HalamanVerifikasi() {
     muat();
   }
 
-  const kelompok = useMemo(() => {
-    const peta = new Map<string, Baris[]>();
-    for (const b of daftar) {
-      const kunci = `${b.karyawan_id}|${b.tanggal}`;
-      const isi = peta.get(kunci) ?? [];
-      isi.push(b);
-      peta.set(kunci, isi);
-    }
-    return [...peta.entries()];
-  }, [daftar]);
+  const kelompok = useMemo(() => kelompokkan(daftar), [daftar]);
 
   const barisLightbox = lightbox !== null ? daftar.find((b) => b.id === lightbox) ?? null : null;
   const indeksLightbox = lightbox !== null ? daftar.findIndex((b) => b.id === lightbox) : -1;
 
-  return (
-    <div>
-      <h1 style={{ marginTop: 0 }}>Verifikasi Absensi</h1>
-      {pesan ? <p role="status" style={{ background: '#dcfce7', padding: 8, borderRadius: 4 }}>{pesan}</p> : null}
+  const filter: FilterVerifikasi = {
+    status: params.get('status') ?? 'MENUNGGU',
+    toko_id: params.get('toko_id') ?? '',
+    dari: params.get('dari') ?? '',
+    sampai: params.get('sampai') ?? '',
+    karyawan_id: params.get('karyawan_id') ?? '',
+    jenis: params.get('jenis') ?? '',
+    belum_checkout: (params.get('belum_checkout') ?? '') === '1',
+  };
 
-      <form style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12, alignItems: 'end' }} onSubmit={(e) => e.preventDefault()}>
-        <div>
-          <label htmlFor="f-status">Status<br />
-            <select id="f-status" value={params.get('status') ?? 'MENUNGGU'} onChange={(e) => aturParam('status', e.target.value)} style={{ padding: 8 }}>
-              <option value="MENUNGGU">Menunggu</option>
-              <option value="DISETUJUI">Disetujui</option>
-              <option value="DITOLAK">Ditolak</option>
-            </select>
-          </label>
-        </div>
-        <div>
-          <label htmlFor="f-toko">Toko<br />
-            <select id="f-toko" value={params.get('toko_id') ?? ''} onChange={(e) => aturParam('toko_id', e.target.value)} style={{ padding: 8 }}>
-              <option value="">Semua</option>
-              {pilihan.toko.map((t) => <option key={t.id} value={t.id}>{t.nama}</option>)}
-            </select>
-          </label>
-        </div>
-        <div>
-          <label htmlFor="f-dari">Dari<br /><input id="f-dari" type="date" value={params.get('dari') ?? ''} onChange={(e) => aturParam('dari', e.target.value)} style={{ padding: 8 }} /></label>
-        </div>
-        <div>
-          <label htmlFor="f-sampai">Sampai<br /><input id="f-sampai" type="date" value={params.get('sampai') ?? ''} onChange={(e) => aturParam('sampai', e.target.value)} style={{ padding: 8 }} /></label>
-        </div>
-        <div>
-          <label htmlFor="f-karyawan">Karyawan<br />
-            <select id="f-karyawan" value={params.get('karyawan_id') ?? ''} onChange={(e) => aturParam('karyawan_id', e.target.value)} style={{ padding: 8 }}>
-              <option value="">Semua</option>
-              {pilihan.karyawan.map((k) => <option key={k.id} value={k.id}>{k.nama}</option>)}
-            </select>
-          </label>
-        </div>
-        <div>
-          <label htmlFor="f-jenis">Jenis<br />
-            <select id="f-jenis" value={params.get('jenis') ?? ''} onChange={(e) => aturParam('jenis', e.target.value)} style={{ padding: 8 }}>
-              <option value="">Semua</option>
-              <option value="CHECKIN">Check-in</option>
-              <option value="CHECKOUT">Check-out</option>
-            </select>
-          </label>
-        </div>
-        <div>
-          <label htmlFor="f-belum">
-            <input id="f-belum" type="checkbox" checked={(params.get('belum_checkout') ?? '') === '1'} onChange={(e) => aturParam('belum_checkout', e.target.checked ? '1' : '')} /> Check-in belum check-out
-          </label>
-        </div>
-      </form>
+  return (
+    <div className="flex flex-col gap-4">
+      <h1 className="mt-0 text-2xl font-semibold tracking-tight">Verifikasi Absensi</h1>
+
+      {pesan ? (
+        <Alert>
+          <AlertDescription>{pesan}</AlertDescription>
+        </Alert>
+      ) : null}
+
+      <PanelFilterVerifikasi nilai={filter} pilihan={pilihan} onUbah={aturParam} />
 
       {pilih.length > 0 ? (
-        <div style={{ background: '#fff', border: '1px solid #ddd', padding: 8, marginBottom: 12, display: 'flex', gap: 8 }}>
-          <span>{pilih.length} dipilih</span>
-          <button type="button" onClick={setujuiMassal}>Setujui terpilih</button>
-          <button type="button" onClick={() => { setDialogTolak({ ids: [...pilih] }); setAlasanTolak(''); }}>Tolak terpilih</button>
-        </div>
+        <PanelAksiMassal
+          jumlah={pilih.length}
+          onSetujui={setujuiMassal}
+          onTolak={() => {
+            setDialogTolak({ ids: [...pilih] });
+            setAlasanTolak('');
+          }}
+        />
       ) : null}
 
       {memuat ? (
-        <div aria-label="Memuat"><p>Memuat…</p></div>
+        <PanelMemuat />
+      ) : aksesDitolak ? (
+        <AksesDitolak />
       ) : galat ? (
-        <div><p role="alert">{galat}</p><button type="button" onClick={muat}>Coba lagi</button></div>
+        <PanelGalat pesan={galat} onCobaLagi={muat} />
       ) : daftar.length === 0 ? (
-        <p>Tidak ada absensi yang menunggu verifikasi.</p>
+        <p className="text-sm text-muted-foreground">Tidak ada absensi yang menunggu verifikasi.</p>
       ) : (
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', background: '#fff', minWidth: 1100 }}>
-            <thead style={{ position: 'sticky', top: 0, background: '#fff' }}>
-              <tr>
-                <th style={{ padding: 8, borderBottom: '2px solid #ddd' }}><span className="sr-only">Pilih</span></th>
-                <th style={{ textAlign: 'left', padding: 8, borderBottom: '2px solid #ddd' }}>Waktu</th>
-                <th style={{ textAlign: 'left', padding: 8, borderBottom: '2px solid #ddd' }}>Karyawan</th>
-                <th style={{ textAlign: 'left', padding: 8, borderBottom: '2px solid #ddd' }}>Toko</th>
-                <th style={{ textAlign: 'left', padding: 8, borderBottom: '2px solid #ddd' }}>Jenis</th>
-                <th style={{ textAlign: 'left', padding: 8, borderBottom: '2px solid #ddd' }}>Foto</th>
-                <th style={{ textAlign: 'left', padding: 8, borderBottom: '2px solid #ddd' }}>Lokasi</th>
-                <th style={{ textAlign: 'left', padding: 8, borderBottom: '2px solid #ddd' }}>Selisih</th>
-                <th style={{ textAlign: 'left', padding: 8, borderBottom: '2px solid #ddd' }}>Status</th>
-                <th style={{ textAlign: 'left', padding: 8, borderBottom: '2px solid #ddd' }}>Menit terlambat (final)</th>
-                <th style={{ textAlign: 'left', padding: 8, borderBottom: '2px solid #ddd' }}>Aksi</th>
-              </tr>
-            </thead>
-            <tbody>
-              {kelompok.map(([kunci, barisKelompok]) => (
-                <Fragment key={`g-${kunci}`}>
-                  <tr>
-                    <td colSpan={11} style={{ padding: '6px 8px', background: '#f3f4f6', fontSize: 13 }}>
-                      {barisKelompok[0]!.karyawan_nama} · {tanggalPendek(barisKelompok[0]!.tanggal)} · {barisKelompok[0]!.toko_nama}
-                    </td>
-                  </tr>
-                  {barisKelompok.map((b) => (
-                    <tr key={b.id}>
-                      <td style={{ padding: 8, borderBottom: '1px solid #eee' }}>
-                        <input type="checkbox" aria-label={`Pilih absensi ${b.id}`} checked={pilih.includes(b.id)} onChange={(e) => setPilih(e.target.checked ? [...pilih, b.id] : pilih.filter((x) => x !== b.id))} />
-                      </td>
-                      <td style={{ padding: 8, borderBottom: '1px solid #eee' }}>{tanggalPendek(b.tanggal)} {b.waktu.slice(11, 16)} WIB</td>
-                      <td style={{ padding: 8, borderBottom: '1px solid #eee' }}>{b.karyawan_nama}</td>
-                      <td style={{ padding: 8, borderBottom: '1px solid #eee' }}>{b.toko_nama}</td>
-                      <td style={{ padding: 8, borderBottom: '1px solid #eee' }}>
-                        {b.jenis === 'CHECKIN' ? 'Check-in' : 'Check-out'}
-                        {b.jenis === 'CHECKOUT' && b.checkin_id !== null ? <span style={{ fontSize: 12 }}> ↳ #{b.checkin_id}</span> : null}
-                      </td>
-                      <td style={{ padding: 8, borderBottom: '1px solid #eee' }}>
-                        {b.foto_file_id ? (
-                          <button type="button" onClick={() => setLightbox(b.id)} style={{ border: 'none', background: 'none', padding: 0, cursor: 'pointer' }} aria-label={`Lihat foto ${b.id}`}>
-                            <img src={`/api/foto/${b.id}`} alt="" width={48} height={48} style={{ objectFit: 'cover', borderRadius: 4 }} />
-                          </button>
-                        ) : <span style={{ color: '#888' }}>—</span>}
-                      </td>
-                      <td style={{ padding: 8, borderBottom: '1px solid #eee', fontSize: 13 }}>
-                        {b.lat !== null && b.lng !== null ? (
-                          <a href={`https://www.google.com/maps?q=${b.lat},${b.lng}`} target="_blank" rel="noreferrer">Buka peta</a>
-                        ) : 'Lokasi tidak tersedia'}
-                      </td>
-                      <td style={{ padding: 8, borderBottom: '1px solid #eee' }}>
-                        {b.jenis === 'CHECKIN' && b.keterlambatan ? (
-                          <>
-                            {b.keterlambatan.selisih === null ? '—' : b.keterlambatan.selisih > 0 ? `+${b.keterlambatan.selisih} mnt` : `${b.keterlambatan.selisih} mnt`}{' '}
-                            {b.keterlambatan.terlambatSistem ? <span style={{ background: '#fed7aa', padding: '2px 6px', borderRadius: 4, fontSize: 12 }}>Terlambat</span> : null}
-                          </>
-                        ) : '—'}
-                      </td>
-                      <td style={{ padding: 8, borderBottom: '1px solid #eee' }}>
-                        <span style={{ background: b.status === 'MENUNGGU' ? '#fef3c7' : b.status === 'DISETUJUI' ? '#dcfce7' : '#fee2e2', padding: '2px 8px', borderRadius: 4, fontSize: 13 }}>
-                          {b.status === 'MENUNGGU' ? 'Menunggu' : b.status === 'DISETUJUI' ? 'Disetujui' : 'Ditolak'}
-                        </span>
-                        {b.sumber === 'KOREKSI_ADMIN' ? <span style={{ background: '#e5e7eb', padding: '2px 6px', borderRadius: 4, fontSize: 12, marginLeft: 4 }}>✎ Dikoreksi</span> : null}
-                        {b.status === 'DITOLAK' && b.alasan_tolak ? <div style={{ fontSize: 12 }}>Ditolak: {b.alasan_tolak}</div> : null}
-                      </td>
-                      <td style={{ padding: 8, borderBottom: '1px solid #eee' }}>
-                        {b.jenis === 'CHECKIN' ? (
-                          <input type="number" min={0} max={1440} step={1} aria-label={`Menit final ${b.id}`} value={finalInput[b.id] ?? (b.keterlambatan_final_menit ?? '')} onChange={(e) => setFinalInput({ ...finalInput, [b.id]: e.target.value })} style={{ width: 80, padding: 6 }} />
-                        ) : '—'}
-                      </td>
-                      <td style={{ padding: 8, borderBottom: '1px solid #eee' }}>
-                        <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-                          <button type="button" onClick={() => setujuiSatuan(b.id)}>Setujui</button>
-                          <button type="button" onClick={() => { setDialogTolak({ ids: [b.id] }); setAlasanTolak(''); }}>Tolak</button>
-                          <button type="button" onClick={() => setKoreksi({ id: b.id, operasi: 'ubah_waktu', waktu: '', alasan: '' })}>Koreksi</button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </Fragment>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <DaftarKartuVerifikasi
+          kelompok={kelompok}
+          terpilih={pilih}
+          onPilih={(id, terpilih) =>
+            setPilih(terpilih ? [...pilih, id] : pilih.filter((x) => x !== id))
+          }
+          onLihatFoto={setLightbox}
+          finalInput={finalInput}
+          onUbahFinal={(id, nilai) => setFinalInput({ ...finalInput, [id]: nilai })}
+          onSetujui={setujuiSatuan}
+          onTolak={(id) => {
+            setDialogTolak({ ids: [id] });
+            setAlasanTolak('');
+          }}
+          onKoreksi={(id) => setKoreksi({ id, operasi: 'ubah_waktu', waktu: '', alasan: '' })}
+        />
       )}
-      <p style={{ fontSize: 13, color: '#555' }}>Ambang terlambat sistem: {ambang} menit (diatur Super Admin di Pengaturan).</p>
 
-      {dialogTolak ? (
-        <div role="dialog" aria-label="Alasan penolakan" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-          <div style={{ background: '#fff', padding: 16, borderRadius: 8, maxWidth: 440, width: '100%' }}>
-            <h2 style={{ marginTop: 0, fontSize: 16 }}>Tolak {dialogTolak.ids.length} absensi</h2>
-            <label>Alasan (wajib)<br />
-              <textarea value={alasanTolak} onChange={(e) => setAlasanTolak(e.target.value)} rows={3} style={{ width: '100%', padding: 8 }} />
-            </label>
-            <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-              <button type="button" onClick={() => setDialogTolak(null)}>Batal</button>
-              <button type="button" onClick={kirimTolakMassal} disabled={alasanTolak.trim() === ''} style={{ background: '#b91c1c', color: '#fff' }}>Tolak</button>
-            </div>
-          </div>
-        </div>
-      ) : null}
+      <p className="text-xs text-muted-foreground">
+        Ambang terlambat sistem: {ambang} menit (diatur Super Admin di Pengaturan).
+      </p>
 
-      {koreksi ? (
-        <div role="dialog" aria-label="Koreksi manual" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-          <div style={{ background: '#fff', padding: 16, borderRadius: 8, maxWidth: 440, width: '100%' }}>
-            <h2 style={{ marginTop: 0, fontSize: 16 }}>Koreksi absensi #{koreksi.id}</h2>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              <label>Operasi<br />
-                <select value={koreksi.operasi} onChange={(e) => setKoreksi({ ...koreksi, operasi: e.target.value })} style={{ padding: 8 }}>
-                  <option value="ubah_waktu">Ubah waktu</option>
-                  <option value="tambah_checkout">Tambah check-out</option>
-                  <option value="tambah_checkin">Tambah check-in</option>
-                </select>
-              </label>
-              <label>Waktu (tanggal + jam, WIB)<br />
-                <input type="datetime-local" value={koreksi.waktu} onChange={(e) => setKoreksi({ ...koreksi, waktu: e.target.value })} style={{ padding: 8 }} />
-              </label>
-              <label>Alasan (wajib)<br />
-                <textarea value={koreksi.alasan} onChange={(e) => setKoreksi({ ...koreksi, alasan: e.target.value })} rows={2} style={{ width: '100%', padding: 8 }} />
-              </label>
-            </div>
-            <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-              <button type="button" onClick={() => setKoreksi(null)}>Batal</button>
-              <button type="button" onClick={kirimKoreksi} disabled={koreksi.alasan.trim() === '' || koreksi.waktu === ''}>Simpan</button>
-            </div>
-          </div>
-        </div>
-      ) : null}
+      <Dialog open={dialogTolak !== null} onOpenChange={(buka) => !buka && setDialogTolak(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="sr-only">Tolak absensi</DialogTitle>
+          </DialogHeader>
+          {dialogTolak ? (
+            <IsiDialogTolak
+              jumlah={dialogTolak.ids.length}
+              alasan={alasanTolak}
+              onUbahAlasan={setAlasanTolak}
+              onBatal={() => setDialogTolak(null)}
+              onKirim={kirimTolakMassal}
+            />
+          ) : null}
+        </DialogContent>
+      </Dialog>
 
-      {barisLightbox && lightbox !== null ? (
-        <div role="dialog" aria-label="Foto absensi" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16, flexDirection: 'column', gap: 8 }}>
-          <img src={`/api/foto/${barisLightbox.id}`} alt={`Foto ${barisLightbox.karyawan_nama}`} style={{ maxWidth: '100%', maxHeight: '70vh', borderRadius: 8 }} />
-          <p style={{ color: '#fff', margin: 0 }}>{barisLightbox.karyawan_nama} · {tanggalPendek(barisLightbox.tanggal)} {barisLightbox.waktu.slice(11, 16)} WIB</p>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <button type="button" onClick={() => setujuiSatuan(barisLightbox.id).then((ok) => { if (ok) setLightbox(null); })}>Setujui</button>
-            <button type="button" onClick={() => { setLightbox(null); setDialogTolak({ ids: [barisLightbox.id] }); setAlasanTolak(''); }}>Tolak</button>
-            <button
-              type="button"
-              onClick={() => {
+      <Dialog open={koreksi !== null} onOpenChange={(buka) => !buka && setKoreksi(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="sr-only">Koreksi absensi</DialogTitle>
+          </DialogHeader>
+          {koreksi ? (
+            <IsiDialogKoreksi
+              id={koreksi.id}
+              operasi={koreksi.operasi}
+              waktu={koreksi.waktu}
+              alasan={koreksi.alasan}
+              onUbah={(sebagian) => setKoreksi({ ...koreksi, ...sebagian })}
+              onBatal={() => setKoreksi(null)}
+              onKirim={kirimKoreksi}
+            />
+          ) : null}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={barisLightbox !== null} onOpenChange={(buka) => !buka && setLightbox(null)}>
+        <DialogContent className="sm:max-w-2xl">
+          {barisLightbox ? (
+            <IsiLightbox
+              baris={barisLightbox}
+              onSetujui={() => setujuiSatuan(barisLightbox.id).then((ok) => ok && setLightbox(null))}
+              onTolak={() => {
+                setLightbox(null);
+                setDialogTolak({ ids: [barisLightbox.id] });
+                setAlasanTolak('');
+              }}
+              onBerikutnya={() => {
                 const berikutnya = daftar[(indeksLightbox + 1) % daftar.length];
                 if (berikutnya) setLightbox(berikutnya.id);
               }}
-            >
-              Berikutnya
-            </button>
-            <button type="button" onClick={() => setLightbox(null)}>Tutup</button>
-          </div>
-        </div>
-      ) : null}
+              onTutup={() => setLightbox(null)}
+            />
+          ) : null}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
 
 export default function Page() {
   return (
-    <Suspense fallback={<p>Memuat…</p>}>
+    <Suspense fallback={<PanelMemuat />}>
       <HalamanVerifikasi />
     </Suspense>
   );

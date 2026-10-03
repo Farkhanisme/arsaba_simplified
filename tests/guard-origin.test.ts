@@ -162,10 +162,27 @@ describe('Origin diperiksa di SEMUA route, lewat perilaku', () => {
   });
 
   for (const r of ROUTE_GUARD) {
-    it(`${r.nama}: Origin kosong DITOLAK 403`, async () => {
+    // BUG-UI-05: browser TIDAK mengirim Origin pada request same-origin GET/HEAD.
+    // rules/03 §9.4 menulis "cek Origin PADA MUTASI", jadi Origin kosong pada
+    // GET/HEAD tidak lagi ditolak — request lanjut ke pemeriksaan sesi (401).
+    // TES INI SEBELUMNYA MENYATAKAN LAIN (403), yaitu mengodifikasi bug itu:
+    // seluruh UI admin tidak pernah bisa dipakai di browser.
+    it(`${r.nama}: Origin kosong -> ${r.metode === 'GET' ? 'lanjut lalu 401 TANPA_SESI' : 'DITOLAK 403 (mutasi wajib Origin)'}`, async () => {
+      // BUG-UI-05. Aturannya (rules/03 §9.4) adalah "cek Origin PADA MUTASI":
+      //   - GET/HEAD: browser same-origin TIDAK mengirim Origin, jadi Origin kosong
+      //     DITERIMA dan request lanjut ke pemeriksaan sesi (401 tanpa cookie).
+      //     Tes ini SEBELUMNYA menuntut 403 untuk semua metode — itu mengodifikasi
+      //     bug yang membuat seluruh UI admin tidak bisa dipakai di browser.
+      //   - POST/PUT/PATCH/DELETE: Origin WAJIB ada dan harus cocok. Tidak ada
+      //     pengecualian, dan inilah proteksi CSRF yang sesungguhnya.
       const res = await r.panggil(buatRequest(r, null));
-      expect(res.status, `${r.nama} tanpa Origin`).toBe(403);
-      expect((await json(res)).kode, r.nama).toBe('ORIGIN_TIDAK_VALID');
+      if (r.metode === 'GET') {
+        expect(res.status, `${r.nama} GET tanpa Origin`).toBe(401);
+        expect((await json(res)).kode, r.nama).toBe('TANPA_SESI');
+      } else {
+        expect(res.status, `${r.nama} ${r.metode} tanpa Origin`).toBe(403);
+        expect((await json(res)).kode, r.nama).toBe('ORIGIN_TIDAK_VALID');
+      }
     });
 
     it(`${r.nama}: Origin berawalan sama DITOLAK 403`, async () => {
@@ -184,10 +201,16 @@ describe('Origin diperiksa di SEMUA route, lewat perilaku', () => {
   }
 
   for (const r of ROUTE_PUBLIK) {
-    it(`${r.nama}: Origin kosong DITOLAK 403`, async () => {
+    it(`${r.nama}: Origin kosong -> ${r.metode === 'GET' ? 'lanjut (bukan 403)' : 'DITOLAK 403 (mutasi wajib Origin)'}`, async () => {
+      // Sama seperti route terlindungi: hanya GET/HEAD yang boleh lanjut tanpa
+      // Origin. POST (logout, absen) tetap 403 — semuanya mutasi.
       const res = await r.panggil(buatRequest(r, null));
-      expect(res.status, `${r.nama} tanpa Origin`).toBe(403);
-      expect((await json(res)).kode, r.nama).toBe('ORIGIN_TIDAK_VALID');
+      if (r.metode === 'GET') {
+        expect(res.status, `${r.nama} GET tanpa Origin`).not.toBe(403);
+      } else {
+        expect(res.status, `${r.nama} ${r.metode} tanpa Origin`).toBe(403);
+        expect((await json(res)).kode, r.nama).toBe('ORIGIN_TIDAK_VALID');
+      }
     });
 
     it(`${r.nama}: Origin berawalan sama DITOLAK 403`, async () => {

@@ -2,6 +2,7 @@
 
 import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { AksesDitolak, adalahAksesDitolak } from '../komponen';
 import { slotTumpangTindih } from '../../../server/aturan/shift';
 
 interface Slot { nama: string; jam_mulai: string; jam_selesai: string; urutan?: number }
@@ -46,6 +47,7 @@ function HalamanJadwal() {
   const [templateList, setTemplateList] = useState<{ nama: string; tipe_hari: string; jam_mulai: string; jam_selesai: string }[]>([]);
   const [memuat, setMemuat] = useState(false);
   const [galat, setGalat] = useState<string | null>(null);
+  const [aksesDitolak, setAksesDitolak] = useState(false);
   const [pesan, setPesan] = useState<string | null>(null);
   const [sel, setSel] = useState<{ karyawan_id: number; tanggal: string } | null>(null);
   const [panelMode, setPanelMode] = useState<'lewati' | 'timpa'>('lewati');
@@ -65,9 +67,14 @@ function HalamanJadwal() {
     } else {
       setMemuat(true);
       setGalat(null);
+      setAksesDitolak(false);
       try {
         const res = await fetch(`/api/admin/jadwal?${query}`);
         if (!res.ok) {
+          if (await adalahAksesDitolak(res)) {
+            setAksesDitolak(true);
+            return;
+          }
           const b = await res.json().catch(() => null);
           throw new Error((b?.pesan as string) ?? 'Gagal memuat jadwal.');
         }
@@ -236,6 +243,8 @@ function HalamanJadwal() {
 
       {memuat ? (
         <p>Memuat…</p>
+      ) : aksesDitolak ? (
+        <AksesDitolak />
       ) : galat ? (
         <div><p role="alert">{galat}</p><button type="button" onClick={muat}>Coba lagi</button></div>
       ) : !data ? (

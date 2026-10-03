@@ -25,9 +25,10 @@ dokumen; tugas agen adalah **menerjemahkan dokumen menjadi kode tanpa mengarang 
 - **Seluruh keputusan sudah diambil pemilik.** B-01 s.d. B-12 terjawab (jadi K-27 s.d. K-38), seluruh
   `[USULAN]` disetujui (K-40), durasi sesi 12 jam (K-39), domain produksi `arsaba.vercel.app`.
   Baca bagian A `rules/00` sebelum mulai; jangan mengambil keputusan berdasarkan ingatan saja.
-- **Status 2026-10-03: M0–M7 selesai.** C-1 (patch batas 20 jam) dan C-2 (batas atas menit
+- **Status 2026-10-03: M0–M8 selesai.** C-1 (patch batas 20 jam) dan C-2 (batas atas menit
   terlambat) keduanya sudah tackled di M4. Warisan tes palsu M1 juga sudah dibersihkan.
-  **454 tes hijau di tiga timezone** (termasuk offset negatif) · build hijau · typecheck hijau ·
+  **489 tes hijau di tiga timezone** (termasuk offset negatif) · build hijau · typecheck hijau ·
+  Sudah di-commit ke GitHub (`main`, commit `5ad4348`).
   `migrations/0001_init.sql` tidak berubah sejak M0 (md5 `466a7b1a…`).
 - **M4 menambah** `server/aturan/keterlambatan.ts` (fungsi murni: `pilihSlot`, `hitungN`,
   `hitungSelisih`), `repo/verifikasi.ts`, 4 route verifikasi/koreksi, halaman `/admin/verifikasi`,
@@ -54,6 +55,67 @@ dokumen; tugas agen adalah **menerjemahkan dokumen menjadi kode tanpa mengarang 
 - **Data demo siap** (`scripts/isi-data-demo.ts`, terpisah dari `seed.ts`): 10 toko,
   26 karyawan, penempatan sejak 2026-01-01, 981 baris absensi, 6 penandaan. Dipakai untuk
   pembanding manual M7. **Tidak** dipakai sebagai fixture tes.
+- **M8 menambah** `server/aturan/rekap.ts`, `repo/rekap.ts`, `server/ekspor.ts` (exceljs),
+  3 route rekap, halaman `/admin/rekap`. M8 adalah milestone yang **pertama kali menulis
+  `log_ekspor`** — kunci periode K-32 kini hidup di alur nyata, bukan hanya di fixture.
+- **UI-1/Data demo untuk memeriksa halaman (2026-10-03).** Menjalankan dev server dengan
+  `APP_ORIGIN='http://localhost:3000'` dan `TURSO_DATABASE_URL='file:./data/demo.db'`
+  menemukan 3 bug yang tak terlihat dari membaca kode:
+  **BUG-UI-01** halaman akar masih "versi M0" · **BUG-UI-02** aplikasi tidak bisa dipakai
+  di localhost tanpa menimpa `APP_ORIGIN`, dan pesan login yang muncul menyesatkan ·
+  **BUG-UI-03** halaman terlarang tampil kosong, bukan pesan akses ditolak.
+  Yang justru terbukti benar: 13 halaman admin 200 tanpa error, dan izin Admin/Super Admin
+  sinkron di menu **dan** di server.
+- **BUG-UI-05 (2026-10-03) ditutup: seluruh UI admin tidak pernah bisa dipakai di browser.**
+  Browser **tidak mengirim header `Origin` pada request same-origin GET/HEAD** (MDN).
+  Semua halaman admin ambil data dengan `fetch()` GET, jadi `wajibOrigin` selalu melihat
+  Origin kosong dan membalas 403. Padahal `rules/03` §9.4 sudah benar sejak awal:
+  *"cek `Origin` **pada mutasi**"* — kode lah yang menyimpang, bukan spec-nya.
+  Perbaikan: mutasi (POST/PUT/PATCH/DELETE) tetap mewajibkan Origin cocok persis;
+  GET/HEAD tanpa Origin diterima lalu lanjut ke cek sesi. Kalau Origin **dikirim**,
+  harus cocok persis untuk semua metode.
+  **Pelajaran:** tes memanggil route dengan `NextRequest` yang menyertakan Origin secara
+  eksplisit, dan pemeriksaan manual memakai `curl -H 'Origin: ...'`. Keduanya tidak pernah
+  meniru browser. **Tes harus meniru apa yang dilakukan browser, bukan apa yang dikerjakan
+  penguji** — aturan yang secara fisik tidak dikirim browser akan mengunci pintu yang
+  memang harus terbuka. Detail + bukti mutasi di `rules/NOTES.md` §13.
+- **UI-2 dimulai: halaman Verifikasi Absensi memakai komponen shadcn (2026-10-03).**
+  `admin/verifikasi/page.tsx` sebelumnya 435 baris, **0 import shadcn, 65 inline style**.
+  Markup-nya dipisah ke `admin/verifikasi/komponen.tsx` (presentasional murni) memakai
+  `Card` `Table` `Badge` `Button` `Input` `Textarea` `Checkbox` `NativeSelect` `Skeleton`
+  `Alert` `Dialog`. 37 tes baru (`tests/ui2-verifikasi-komponen.test.ts`) semuanya
+  memanggil `renderToStaticMarkup`, dan **9 mutasi** semuanya tertangkap.
+- **BUG-UI-06 (2026-10-03): `Select` base-ui menampilkan KODE MENTAH, bukan label.**
+  `SelectItem` ada di dalam `Portal` yang **tidak ter-mount saat popup tertutup**
+  (`SelectPortal`: `mounted || forceMount`). Item tidak pernah terdaftar, jadi
+  `SelectValue` jatuh ke `serializeValue(value)` dan trigger menampilkan
+  `<span data-slot="select-value">DISETUJUI</span>`, bukan "Disetujui" — juga di
+  browser, sampai dropdown dibuka sekali. Filter harus pakai **`NativeSelect`**
+  (`<select>` asli): label + penanda `selected` ikut ter-render di server, jadi tampil
+  benar sejak byte pertama **dan bisa diuji**. Konsekuensi lain: opsi `SelectContent`
+  tidak pernah masuk render statis karena portal, jadi mustahil diuji.
+  Detail + sumber di `rules/NOTES.md` §14.
+- **Dua jebakan `npx shadcn add` pada style `base-nova`** (lihat `NOTES.md` §14):
+  registry menulis `import { cn } from "cn"` — bukan `@/lib/utils`, jadi tidak bisa
+  di-typecheck; dan menyisipkan teks English (`Close`, `Sidebar`) yang melanggar aturan
+  UI Bahasa Indonesia. Keduanya harus diperbaiki manual tiap kali komponen baru dipasang.
+- **Pelajaran tes baru dari UI-2.** Ekspektasi tes bisa salah dan tes tetap hijau:
+  `not.toMatch(/<button[^>]*disabled/)` selalu gagal karena kelas dasar shadcn Button
+  memuat literal `disabled:` (penanda yang benar: atribut `disabled=""`). Class CSS juga
+  bukan penanda stabil — `has-data-checked:` di dalam class chip membuat pola
+  `/data-checked/` salah cocok. Dan `/<th[^>]*>/` ikut cocok dengan `<thead>`.
+  Nilai `<textarea>` adalah isi elemen, bukan atribut `value`.
+- **UI-2 prompt siap (`rules/18-agent-prompt-ui2.md`), 2026-10-03.** Verified page
+  tidak boleh disentuh — pemilik sendiri yang mengubah tabel jadi bentuk **KARTU**
+  (`KartuVerifikasi` + `DaftarKartuVerifikasi`), dan itu jadi teladan UI-2.
+  Sisa pekerjaan: **248 inline style** dan **117 elemen polos** di 14 berkas
+  `src/app/admin/`. Prompt memuat keempat jebakan yang sudah ketahuan (BUG-UI-05 Origin,
+  BUG-UI-06 Select base-ui, import `from "cn"`, `data-slot` tertimpa) plus pemetaan
+  halaman → rules/05 §5.x → komponen. Inventaris dan angka di prompt sudah diverifikasi
+  dengan penghitungan, bukan diketik manual.
+- **Pelajaran: aplikasi ini belum pernah dibuka di browser selama 8 milestone.** Membaca kode
+  dan menjalankan tes TIDAK sama dengan melihat hasilnya. Milestone presentasi wajib
+  diverifikasi dengan membuka aplikasi.
 - **BUG-01 (2026-10-03) sudah ditutup: `serialisasiWIB(sekarangWIB())` menulis 7 jam ke depan.**
   `sekarangWIB()` sudah mengembalikan Date yang digeser +07:00, jadi mengumpannya lagi ke
   fungsi waktu lain menggeser dua kali. 88 call site (41 `src/`, 43 `tests/`, 4 `scripts/`).
@@ -100,7 +162,8 @@ dokumen; tugas agen adalah **menerjemahkan dokumen menjadi kode tanpa mengarang 
    `rules/10-agent-prompt-m2.md` (M2), `rules/11-agent-prompt-m3.md` (M3),
    `rules/12-agent-prompt-m4.md` (M4), `rules/13-agent-prompt-m5.md` (M5),
    `rules/14-agent-prompt-m6.md` (M6), `rules/15-agent-prompt-m7.md` (M7),
-   `rules/16-agent-prompt-m8.md` (M8).
+   `rules/16-agent-prompt-m8.md` (M8), `rules/17-agent-prompt-ui1.md` (UI-1),
+   `rules/18-agent-prompt-ui2.md` (UI-2).
 2. Mekanisme tag (legenda di `00`) tetap berlaku untuk pertanyaan **baru**: `[KEPUTUSAN]` boleh,
    `[USULAN]` boleh tapi tandai untuk ditinjau, `[BELUM DIPUTUSKAN]` berarti **berhenti** — jangan
    implementasi, jangan nebak. B-01 s.d. B-17 sudah tertutup, jadi pertanyaan baru
@@ -148,7 +211,9 @@ Tidak ada yang terblokir — kolom keputusan menunjukkan keputusan yang dipakai.
 | M5 | Jadwal grid hari/minggu/bulan, isi massal, perubahan khusus satu hari (maks **2 slot**) | K-14, K-17, K-22, K-27, K-37, K-55 | **SELESAI** 2026-10-03 |
 | M6 | Tandai tidak berangkat | K-19, K-22, K-31, K-32, K-56 | **SELESAI** 2026-10-03 |
 | M7 | Dashboard | K-22, K-28, K-30, K-36 | **SELESAI** 2026-10-03 |
-| M8 | Rekap, pra-syarat ekspor, Excel, `log_ekspor`, penguncian periode | K-13, K-32, K-33 | prompt siap |
+| M8 | Rekap, pra-syarat ekspor, Excel, `log_ekspor`, penguncian periode | K-13, K-32, K-33 | **SELESAI** 2026-10-03 |
+| UI-1 | Pondasi desain (Tailwind v4 + shadcn), mode gelap, layout, dashboard + grafik | — | prompt siap |
+| UI-2 | Redesign 12 halaman admin sisanya | — | **prompt siap** (`rules/18`) |
 | M9 | Audit log UI, hardening, aksesibilitas, QA menyeluruh | — | — |
 
 ## Yang paling mudah salah

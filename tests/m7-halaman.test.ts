@@ -45,6 +45,11 @@ describe('halaman /admin benar-benar bisa dirender', () => {
     expect(html).not.toContain('type="month"');
     // Judul mencantumkan tanggal hari ini dari server.
     expect(html).toContain('Jumat, 3 Okt 2026');
+    // Dua grafik dengan judul teks, tinggi eksplisit, dan angka/label selain warna.
+    expect(html).toContain('Terjadwal vs Sudah absen per toko');
+    expect(html).toContain('Keterlambatan per toko');
+    expect(html).toContain('h-[260px]');
+    expect(html).toContain('h-[220px]');
   });
 
   it('halaman memuat dengan keadaan skeleton', async () => {

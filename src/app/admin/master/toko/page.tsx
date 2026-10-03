@@ -2,7 +2,7 @@
 
 import { Suspense, useCallback, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Toast, pesanGalat, type Pesan } from '../../komponen';
+import { Toast, pesanGalat, AksesDitolak, adalahAksesDitolak, type Pesan } from '../../komponen';
 
 interface Toko {
   id: number;
@@ -20,10 +20,15 @@ function HalamanToko() {
   const [pesan, setPesan] = useState<Pesan | null>(null);
   const [suntingId, setSuntingId] = useState<number | null>(null);
   const [suntingNama, setSuntingNama] = useState('');
+  const [aksesDitolak, setAksesDitolak] = useState(false);
 
   const muat = useCallback(async () => {
     const res = await fetch('/api/admin/master/toko');
     if (!res.ok) {
+      if (await adalahAksesDitolak(res)) {
+        setAksesDitolak(true);
+        return;
+      }
       setPesan({ jenis: 'galat', teks: await pesanGalat(res, 'Gagal memuat daftar toko.') });
       return;
     }
@@ -86,6 +91,7 @@ function HalamanToko() {
     <div>
       <h1 style={{ marginTop: 0 }}>Data Master — Toko</h1>
       <Toast pesan={pesan} onTutup={() => setPesan(null)} />
+      {aksesDitolak ? <AksesDitolak /> : null}
 
       <form onSubmit={tambah} style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
         <label htmlFor="nama-baru" className="sr-only">Nama toko baru</label>

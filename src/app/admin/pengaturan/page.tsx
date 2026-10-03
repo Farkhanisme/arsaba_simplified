@@ -1,15 +1,20 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { Toast, pesanGalat, type Pesan } from '../komponen';
+import { Toast, pesanGalat, AksesDitolak, adalahAksesDitolak, type Pesan } from '../komponen';
 
 export default function HalamanPengaturan() {
   const [ambang, setAmbang] = useState('5');
   const [pesan, setPesan] = useState<Pesan | null>(null);
+  const [aksesDitolak, setAksesDitolak] = useState(false);
 
   const muat = useCallback(async () => {
     const res = await fetch('/api/admin/pengaturan');
     if (!res.ok) {
+      if (await adalahAksesDitolak(res)) {
+        setAksesDitolak(true);
+        return;
+      }
       setPesan({ jenis: 'galat', teks: await pesanGalat(res, 'Gagal memuat pengaturan.') });
       return;
     }
@@ -41,6 +46,7 @@ export default function HalamanPengaturan() {
     <div>
       <h1 style={{ marginTop: 0 }}>Pengaturan</h1>
       <Toast pesan={pesan} onTutup={() => setPesan(null)} />
+      {aksesDitolak ? <AksesDitolak /> : null}
 
       <form onSubmit={simpan} style={{ background: '#fff', padding: 16, border: '1px solid #ddd', maxWidth: 480 }}>
         <div style={{ marginBottom: 12 }}>

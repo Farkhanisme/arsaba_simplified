@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDb } from '../../../server/db';
+import { originDiterima } from '../../../server/guard';
 import { hashPassword, verifyPassword, createSession, checkLoginAttempts, recordLoginAttempt } from '../../../server/auth';
 import { catatAudit } from '../../../server/audit';
 import { serialisasiWIB } from '../../../server/waktu';
@@ -13,8 +14,9 @@ export async function POST(req: NextRequest) {
     // supaya penyerang tidak bisa membedakan login ditolak karena Origin dengan
     // ditolak karena kredensial (BR-AUTH).
     const origin = req.headers.get('origin') || '';
-    const appOrigin = process.env['APP_ORIGIN'] || '';
-    if (appOrigin && origin !== appOrigin) {
+    // Jalur dev localhost ditangani originDiterima() (BUG-UI-02); pesan gagal
+    // tetap generik supaya tidak bocor (BR-AUTH).
+    if (!originDiterima(origin)) {
       return NextResponse.json({ kode: 'ORIGIN_TIDAK_VALID', pesan: 'Username atau password salah.' }, { status: 403 });
     }
 

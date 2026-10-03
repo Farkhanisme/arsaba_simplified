@@ -8,3 +8,6 @@ data/*.db-journal
 .env
 .env.local
 .vercel
+
+# Artefak TypeScript: berubah setiap build, hanya noise di git diff.
+*.tsbuildinfo

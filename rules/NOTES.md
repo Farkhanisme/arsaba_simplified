@@ -531,3 +531,219 @@ membandingkan nilai yang ditulis aplikasi dengan **waktu nyata server**.
 
 `menitDalamHari(instant)` tidak punya tanda `?` seperti `tanggalWIB`/`serialisasiWIB`.
 Ini justru lebih aman — pemanggil wajib menyebut instant. Jangan diubah jadi opsional.
+
+---
+
+## 13. BUG-UI-05 — seluruh UI admin tidak pernah bisa dipakai di browser (2026-10-03)
+
+**Ditemukan** saat pengguna membuka aplikasi di browser sungguhan, bukan dari kode.
+
+### Gejala
+
+Setelah login berhasil, dashboard menampilkan "Akses ditolak" + tombol "Coba lagi".
+Semua halaman adminsauf login Experience the same.
+
+### Akar masalah
+
+Browser **TIDAK mengirim header `Origin` pada request same-origin GET/HEAD**.
+
+Sumber resmi: https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Origin
+> "same-origin requests **except for `GET` or `HEAD` requests** (i.e., they are added to
+> same-origin `POST`, `OPTIONS`, `PUT`, `PATCH`, and `DELETE` requests)"
+
+Semua halaman admin mengambil data dengan `fetch()` GET — jadi `Origin` selalu kosong.
+`wajibOrigin()` membandingkan eksak → seluruh fetch berakhir **403**.
+
+### Dua-duanya menyimpang dari aturan proyek sendiri
+
+| | Isi |
+|---|---|
+| **Spesifikasi** | `rules/03` §9.4: "Cookie sesi `HttpOnly; Secure; SameSite=Lax`; **cek `Origin` pada mutasi**." |
+| **Implementasi lama** | mengecek `Origin` pada **SEMUA** request termasuk GET |
+| **Cookie** | memang sudah `httpOnly: true` + `sameSite: 'lax'` (`login/route.ts`) |
+
+Jadi ini **bukan** pelonggaran keamanan saat memperbaikinya — justru kode lama yang menyimpang.
+
+### Kenapa tidak tertangkap selama 9 milestone
+
+- Semua tes memanggil route handler dengan `NextRequest` yang **menyertakan Origin secara
+  eksplisit** — tidak meniru perilaku browser.
+- Pemeriksaan manual memakai `curl -H 'Origin: ...'` — selalu menyertakan header itu.
+- Tidak ada satu pun tes yang mengirim request **tanpa** Origin pada GET.
+- Aplikasi belum pernah dibuka di browser sampai 2026-10-03.
+
+### Perbaikan
+
+`wajibOrigin()` kini membedakan metode:
+
+| Metode | Origin kosong | Origin salah |
+|---|---|---|
+| POST / PUT / PATCH / DELETE | **403** (mutasi wajib Origin) | **403** |
+| GET / HEAD | diterima, lanjut ke cek sesi (401 tanpa cookie) | **403** |
+
+Kalau Origin **dikirim**, harus cocok persis untuk semua metode — jadi browser
+cross-origin yang kebetulan mengirim Origin tetap ditolak.
+
+### Mengapa menerima Origin kosong pada GET aman
+
+1. Cookie sesi sudah `SameSite=Lax`. Under Lax, browser **tidak** mengirim cookie pada
+   request cross-site non-top-level seperti `<img>` atau `fetch()` — jadi penyerang
+   tidak punya otoritas sama sekali.
+2. Route GET di aplikasi ini hanya membaca; tidak ada mutasi yang bisa dipancing lewat GET.
+3. Penyerang non-browser bisa memalsukan header, tapi tanpa cookie sesi tidak ada yang
+   bisa dilakukan.
+
+### Tes yang diperbarui (bukan dihapus)
+
+`tests/guard-origin.test.ts` sebelumnya **mengodifikasi bug ini**: 150 tes menuntut
+"GET tanpa Origin → 403". Sekarang tesnya bercabang per metode — lebih tajam, karena
+membuktikan perbedaan antara baca dan mutasi.
+
+Ditambah dua tes di `tests/guard.logout.test.ts`:
+- `GET tanpa Origin LOLOS` (200 dengan sesi valid)
+- `MUTASI tanpa Origin tetap DITOLAK 403`
+
+**Bukti mutasi (dijalankan 2026-10-03):**
+
+| Mutasi | Hasil |
+|---|---|
+| Longgarkan juga ke mutasi (`origin === ''` untuk semua metode) | **puluhan tes gagal**, termasuk "MUTASI tanpa Origin tetap DITOLAK 403" |
+| Abaikan Origin salah pada GET | **puluhan tes gagal**, termasuk "guard menolak Origin salah di semua route terlindungi" |
+
+### Pelajaran
+
+**Tes harus meniru apa yang dilakukan browser, bukan apa yang dikerjakan penguji.**
+Mewajibkan header yang secara fisik tidak dikirim browser menghasilkan paggar yang
+mengunci pintu yang memang harus terbuka.
+
+---
+
+## 14. UI-2 (permulaan) — Halaman Verifikasi Absensi, dan bug `Select` base-ui
+
+### Yang dikerjakan
+
+`src/app/admin/verifikasi/page.tsx` sebelumnya **435 baris, 0 import shadcn, 65 inline
+style**. Sekarang markup-nya dipisah ke `src/app/admin/verifikasi/komponen.tsx`
+(presentasional murni) dan memakai komponen shadcn: `Card`, `Table`, `Badge`, `Button`,
+`Input`, `Textarea`, `Checkbox`, `NativeSelect`, `Skeleton`, `Alert`, `Dialog`, `Label`.
+
+Komponen yang ditambahkan lewat `npx shadcn@latest add` (style `base-nova`):
+`checkbox`, `textarea`, `field`, `native-select`.
+
+### Dua masalah pada hasil CLI shadcn
+
+**1. Import rusak.** Registry `base-nova` menulis `import { cn } from "cn"` — bukan
+`@/lib/utils`. Tidak bisa di-typecheck. Terjadi di 5 berkas yang ditulis/diperbarui CLI:
+`checkbox`, `textarea`, `field`, `label`, `separator`. Semuanya diperbaiki manual.
+
+**2. Teks English.** `dialog.tsx` dan `sheet.tsx` memuat `<span className="sr-only">Close</span>`,
+`sidebar.tsx` memuat `<SheetTitle>Sidebar</SheetTitle>`. Proyek mewajibkan UI Bahasa
+Indonesia, jadi diganti `Tutup` / `Menu navigasi`.
+
+> Catatan: perbaikan ini akan hilang kalau `npx shadcn add` dijalankan lagi pada berkas
+> yang sama. Waspadai saat menambah komponen berikutnya.
+
+### BUG-UI-06 (baru): `Select` base-ui menampilkan KODE MENTAH, bukan label
+
+Komponen picker dipakai sebelum diuji. `Select` base-ui ternyata **tidak
+bisa dipakai untuk filter tertutup**:
+
+```
+SelectPortal.js:  const shouldRender = mounted || forceMount;
+                  if (!shouldRender) return null;
+```
+
+`SelectItem` berada di dalam `SelectContent` → `Portal`, yang **tidak ter-mount saat popup
+tertutup**. Akibatnya daftar item tidak pernah terdaftar di store, dan `SelectValue`
+jatuh ke `resolveSelectedLabel` → `serializeValue(value)`:
+
+```html
+<span data-slot="select-value">DISETUJUI</span>    <!-- seharusnya "Disetujui" -->
+```
+
+Jadi filter akan menampilkan `MENUNGGU`, `CHECKIN`, `CHECKOUT`, dan **id toko/karyawan
+mentah** (`3`, bukan "toko melati"). Tidak hanya di server — di browser pun begitu,
+sampai dropdown dibuka satu kali.
+
+Diverifikasi langsung pada `@base-ui/react@1.8`:
+`node_modules/@base-ui/react/select/portal/SelectPortal.js`,
+`.../internals/resolveValueLabel.js`, `.../value/SelectValue.js`.
+
+**Perbaikan:** filter memakai `NativeSelect` — `<select>` asli. Label, penanda
+`selected`, dan seluruh opsi ikut ter-render di server, jadi bisa diuji dan tampil
+benar sejak byte pertama.
+
+Bonus: `SelectContent` tidak masuk render statis karena portal, sehingga opsinya
+**tidak mungkin diuji**. Dengan `NativeSelect`, ketiganya bisa.
+
+### Pelajaran tes (dua-duanya sudah diperbaiki)
+
+1. **Ekspektasi tes bisa salah dan tes tetap hijau.** `not.toMatch(/<button[^>]*disabled/)`
+   selalu gagal karena kelas dasar shadcn Button memuat literal `disabled:`. Penanda
+   yang benar adalah atribut `disabled=""`.
+2. **Class CSS bukan penanda yang stabil.** `has-data-checked:` di dalam class chip
+   membuat pola `/data-checked/` salah cocok. Harus `data-checked=""`.
+3. **RegExp `<th[^>]*>` juga cocok dengan `<thead>`.** upgraded ke `/<th[\s>]/`, lalu
+   ternyata `TableHead` memang benar-benar `<th>` — jadi yang diperiksa `data-slot`.
+4. **Nilai `<textarea>` adalah isi elemen, bukan atribut `value`.**
+5. **Nilai `0` ≠ kosong (K-30).** `keterlambatan_final_menit` bertipe `number | null`;
+   harus dikonversi eksplisit dengan `String(...)`, kalau tidak `0` bisa jadi `""`.
+
+### Mutasi yang membuktikan tes benar-benar menguji sesuatu
+
+| # | Mutasi | Hasil |
+|---|---|---|
+| 1 | chip kembali jadi label telanjang | tertangkap (percobaan pertama **tidak** tertangkap → tes diperkuat) |
+| 2 | filter `NativeSelect` → `<input type="hidden">` | 4 tes gagal |
+| 3 | badge Terlambat jadi `<span>` biasa | 1 tes gagal |
+| 4 | tombol Tolak kehilangan `disabled` | 1 tes gagal |
+| 5 | batas `max={1440}` dihapus (K-54) | 1 tes gagal |
+| 6 | `kelompokkan` diubah jadi per-id | 1 tes gagal |
+| 7 | `data-checked` chip dihapus | 1 tes gagal |
+| 8 | `tanggalPendek` jadi bulan-hari | 3 tes gagal |
+| 9 | koordinat tidak lagi jadi tautan peta | 1 tes gagal |
+
+Mutasi 1 sempat **tidak** tertangkap pada percobaan pertama — tes hanya memeriksa
+`aria-checked`, yang juga dipenuhi checkbox polos. Tesnya lalu ditambah memeriksa
+`data-slot="chip"` beserta `rounded-full` dan `border`.
+
+### `kelompokkan` dipindah ke komponen
+
+Fungsi pengelompokan (rules/05 §5.3 "indikator Pasangan") awalnya hidup di dalam
+`page.tsx`, yang tidak bisa dirender di tes karena butuh `next/navigation`. Dipindah ke
+fungsi murni `kelompokkan()` di `komponen.tsx` supaya bisa diuji.
+
+### Foto 502 di lokal — bukan bug
+
+Log dev menunjukkan `GET /api/foto/* 502`. Itu **perilaku benar**: `file_id` pada data
+demo palsu, jadi `unduhFotoTelegram` gagal dan route mengembalikan
+`{ kode: 'FOTO_GAGAL_DIMUAT', pesan: 'Foto tidak dapat dimuat. Coba lagi.' }` dengan
+status 502. Di produksi dengan token bot asli, foto akan termuat.
+
+### Yang masih inline (di luar cakupan halaman ini)
+
+`src/app/admin/layout.tsx` dan `src/app/pengalih-tema.tsx` masih memakai `<button>`
+polos dan inline style. Itu pekerjaan UI-2 berikutnya, bukan halaman verifikasi.
+
+
+### Temuan tambahan 2026-10-03: `data-slot` yang kita kirim menimpa milik komponen
+
+Komponen shadcn menulis `data-slot`-nya **sebelum** `{...props}`:
+
+```tsx
+function Card({ className, size = "default", ...props }) {
+  return <div data-slot="card" data-size={size} className={cn(...)} {...props} />
+}
+```
+
+Jadi `<Card data-slot="kartu-verifikasi">` **menghapus** `data-slot="card"`. Tes yang
+memakai `data-slot="card"` sebagai bukti bahwa `Card` dipakai akan selalu gagal — dan
+versi yang hanya memeriksa `data-slot="card-header"` / `"card-content"` **lolos** saat
+`Card` diganti `<div>` biasa (mutasi yang benar-benar lolos, sudah diperbaiki).
+
+**Penanda yang tidak tertimpa:** kelas khas komponen. Untuk `Card` itu `group/card` —
+tapi perhatikan `CardHeader` punya `group/card-header`, jadi pola harus
+`group\/card(?![-\w])`, bukan `\bgroup\/card\b`.
+
+Aturan: kalau perlu `data-slot` sendiri, pakai `data-testid` atau `data-nama`, jangan
+`data-slot`.

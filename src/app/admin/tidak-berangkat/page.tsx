@@ -2,6 +2,7 @@
 
 import { Suspense, useCallback, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { AksesDitolak, adalahAksesDitolak } from '../komponen';
 
 interface Penandaan {
   id: number;
@@ -53,6 +54,7 @@ function HalamanTidakBerangkat() {
   const [pilihan, setPilihan] = useState<{ toko: { id: number; nama: string }[]; karyawan: { id: number; nama: string }[] }>({ toko: [], karyawan: [] });
   const [memuat, setMemuat] = useState(false);
   const [galat, setGalat] = useState<string | null>(null);
+  const [aksesDitolak, setAksesDitolak] = useState(false);
   const [pesan, setPesan] = useState<string | null>(null);
   const [form, setForm] = useState({ karyawan: [] as number[], dari: '', sampai: '', jenis: 'IZIN', catatan: '' });
   const [hasil, setHasil] = useState<HasilTandai | null>(null);
@@ -63,12 +65,17 @@ function HalamanTidakBerangkat() {
   const muat = useCallback(async () => {
     setMemuat(true);
     setGalat(null);
+    setAksesDitolak(false);
     try {
       const [rDaftar, rPilih] = await Promise.all([
         fetch(`/api/admin/tidak-berangkat?${query}`),
         fetch('/api/admin/verifikasi/pilihan'),
       ]);
       if (!rDaftar.ok) {
+        if (await adalahAksesDitolak(rDaftar)) {
+          setAksesDitolak(true);
+          return;
+        }
         const b = await rDaftar.json().catch(() => null);
         throw new Error((b?.pesan as string) ?? 'Gagal memuat data.');
       }
@@ -186,6 +193,8 @@ function HalamanTidakBerangkat() {
 
       {memuat ? (
         <p>Memuat…</p>
+      ) : aksesDitolak ? (
+        <AksesDitolak />
       ) : galat ? (
         <div><p role="alert">{galat}</p><button type="button" onClick={muat}>Coba lagi</button></div>
       ) : daftar.length === 0 ? (
