@@ -7,6 +7,11 @@ const DB_PATH = 'data/uji.db';
 
 describe('Integrasi database lokal', () => {
   beforeAll(async () => {
+    // WAJIB set sebelum memanggil migrate.ts. migrated membaca .env.local, dan
+    // .env.local berisi URL Turso PRODUKSI — tanpa baris ini, tes ini ikut
+    // menulis ke database produksi. Pola ini sama dengan 25 file tes lain
+    // (auth, m2-*, m4-*, dst).
+    process.env['TURSO_DATABASE_URL'] = 'file:./data/uji.db';
     if (fs.existsSync(DB_PATH)) {
       fs.unlinkSync(DB_PATH);
     }

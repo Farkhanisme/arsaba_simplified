@@ -85,6 +85,17 @@ body {
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
+
+  /* Badge status absensi (BUG-UI-07). Dipakai halaman karyawan /a/[token] yang
+     tidak memakai komponen shadcn, jadi butuh token sendiri.
+     Nilai gelap memakai latar redup + teks terang, bukan warna pastel yang
+     hanya terbaca di atas putih. */
+  --badge-menunggu: oklch(0.976 0.062 90);
+  --badge-menunggu-teks: oklch(0.42 0.09 70);
+  --badge-setuju: oklch(0.962 0.044 155);
+  --badge-setuju-teks: oklch(0.35 0.09 155);
+  --badge-ditolak: oklch(0.962 0.043 25);
+  --badge-ditolak-teks: oklch(0.42 0.14 25);
 }
 
 .dark {
@@ -119,6 +130,16 @@ body {
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.556 0 0);
+
+  /* Lihat catatan token badge di blok :root. Perbedaannya: di sini latarnya
+     gelap dan teksnya terang. Warna pastel terang hanya terbaca di atas putih,
+     jadi menyalinnya ke mode gelap justru membuat teks tak terbaca. */
+  --badge-menunggu: oklch(0.28 0.06 80);
+  --badge-menunggu-teks: oklch(0.92 0.13 90);
+  --badge-setuju: oklch(0.26 0.05 155);
+  --badge-setuju-teks: oklch(0.9 0.14 155);
+  --badge-ditolak: oklch(0.28 0.09 25);
+  --badge-ditolak-teks: oklch(0.92 0.13 25);
 }
 
 @layer base {

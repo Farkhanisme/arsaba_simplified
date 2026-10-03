@@ -1,4 +1,6 @@
 #!/usr/bin/env node
+process.loadEnvFile('.env.local');
+
 import { createClient } from '@libsql/client';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -7,6 +9,39 @@ import { serialisasiWIB } from '../src/server/waktu';
 async function main() {
   const url = process.env['TURSO_DATABASE_URL'] || 'file:./data/uji.db';
   const authToken = process.env['TURSO_AUTH_TOKEN'] || '';
+
+  // Jejak audit: cetak target SEBELUM menyentuh database apa pun.
+  //
+  // Kenapa wajib: tanpa baris ini, migrasi yang jatuh ke file lokal tetap
+  // mencetak "Migrasi selesai." lalu terlihat sukses, padahal database Turso
+  // tidak tersentuh sama sekali. Itu yang terjadi pada 2026-10-03 — migrate.ts
+  // juga belum memuat .env.local, jadi nilai Turso di sana diabaikan.
+  //
+  // Baca baris "Target migrasi" ini sebelum migrasi berjalan: kalau
+  // target-nya file: dan bukan libsql://, migrasi tidak menyentuh Turso.
+  console.log(`Target migrasi: ${url}`);
+
+  // Pagar kedua: jangan pernah mengarahkan migrasi ke Turso produksi dari
+  // skrip yang berjalan di dalam proses tes.
+  //
+  // Kenapa perlu: `npm test` menjalankan 26 file yang memanggil skrip ini lewat
+  // execSync. Semuanya memakai file lokal `data/uji_*.db`, tapi `.env.local`
+  // berisi URL Turso produksi. ansiedad 2026-10-03: `integrasi.db.test.ts`
+  // lupa menyetel TURSO_DATABASE_URL, sehingga tes itu ikut menulis ke
+  // produksi. Satu baris lupa sudah cukup untuk itu terjadi.
+  const namaSkrip = path.basename(process.argv[1] ?? '');
+  const dipanggilDariTes = process.env['VITEST'] === 'true' || process.env['VITEST_WORKER_ID'] !== undefined;
+  if (dipanggilDariTes && url.startsWith('libsql://')) {
+    console.error(
+      `\nDITOLAK: skrip ini dipanggil dari dalam tes, tapi target-nya Turso produksi.\n` +
+        `  ${namaSkrip} — ${url}\n` +
+        `  Setiap file tes WAJIB menyetel process.env['TURSO_DATABASE_URL'] ke file\n` +
+        `  lokal (mis. 'file:./data/uji_<nama>.db') SEBELUM memanggil skrip ini.\n` +
+        `  Kalau tidak, data uji akan mengotori database produksi.`,
+    );
+    process.exit(1);
+  }
+
   const db = createClient({ url, authToken: authToken || undefined });
 
   // Pastikan folder data/ ada
