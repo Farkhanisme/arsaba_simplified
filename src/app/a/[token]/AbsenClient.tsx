@@ -3,11 +3,26 @@
 /**
  * Interaksi absen karyawan (K-52, K-53, BR-A2, BR-A3).
  *
- * Alur: pratinjau langsung -> [Foto][Ganti Kamera] -> foto diambil ->
+ * Alur: pratinjau langsung -> [Foto][Ganti Kamera] -> MODAL hasil foto
  * [Foto Ulang][Absen] -> kirim -> Telegram. Tanpa <input type="file">.
  * Kompresi JPEG otomatis (src/lib/kompres.ts). Lokasi apa pun tidak
- * menghalangi kirim. request_id dibuat saat foto diambil, dipakai ulang
- * untuk percobaan ulang foto yang sama; Foto Ulang -> request_id baru.
+ * menghalangi kirim.
+ *
+ * Perilaku modal (keputusan pemilik):
+ *   - Modal terbuka saat foto diambil, menutupi pratinjau. Tombol di
+ *     belakangnya mati (Dialog modal + disabled).
+ *   - Modal TIDAK bisa ditutup lewat klik-luar/Escape — hanya lewat Foto
+ *     Ulang atau hasil kirim. Kalau bisa ditutup sembarangan, foto hilang
+ *     tanpa jejak dan karyawan bingung.
+ *   - Saat mengirim, modal tetap terbuka (tombol nonaktif + "Mengirim…").
+ *   - Sukses: foto dibuang (modal tertutup otomatis) + toast sukses.
+ *   - Gagal: foto dibuang (modal tertutup) + toast galat di halaman utama.
+ *     Karyawan harus foto ulang dari awal — tidak ada kirim ulang.
+ *   - Setiap foto selalu dapat request_id BARU (BR-A11 tidak lagi dipakai
+ *     untuk percobaan ulang, karena foto yang gagal ikut dibuang).
+ *
+ * Pesan sukses/galat memakai toast sonner, khusus halaman ini (Toaster
+ * dipasang di sini, bukan di layout root).
  *
  * Komponen shadcn dipakai sejak 2026-10-03 (sebelumnya inline style dengan
  * warna literal, BUG-UI-07).
@@ -19,9 +34,12 @@
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useParams } from 'next/navigation';
+import { toast } from 'sonner';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
+import { Toaster } from '@/components/ui/sonner';
 import type { InfoAbsen } from '../../../server/absen-info';
 import { kompresBlobBrowser } from '../../../lib/kompres';
 
@@ -44,8 +62,10 @@ export default function AbsenClient({ infoAwal }: { infoAwal: InfoAbsen }) {
   const [requestId, setRequestId] = useState<string | null>(null);
   const [lokasi, setLokasi] = useState<StatusLokasi>({ keadaan: 'BELUM' });
   const [mengirim, setMengirim] = useState(false);
-  const [pesan, setPesan] = useState<{ jenis: 'sukses' | 'galat'; teks: string } | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
+
+  // Modal terbuka tepat saat ada foto yang menunggu keputusan.
+  const modalTerbuka = foto !== null && pratinjau !== null;
 
   const mulaiKamera = useCallback(async (mode: 'user' | 'environment') => {
     setGalatKamera(null);
@@ -101,10 +121,20 @@ export default function AbsenClient({ infoAwal }: { infoAwal: InfoAbsen }) {
     };
   }, [pratinjau]);
 
+  /** Membuang foto dan menutup modal. Dipakai Foto Ulang dan hasil kirim. */
+  function buangFoto() {
+    setPratinjau((lama) => {
+      if (lama) URL.revokeObjectURL(lama);
+      return null;
+    });
+    setFoto(null);
+    setRequestId(null);
+  }
+
   async function ambilFoto() {
     const video = videoRef.current;
     if (!video || video.videoWidth === 0) {
-      setPesan({ jenis: 'galat', teks: 'Kamera belum siap. Tunggu pratinjau tampil.' });
+      toast.error('Kamera belum siap. Tunggu pratinjau tampil.');
       return;
     }
     const kanvas = document.createElement('canvas');
@@ -113,7 +143,7 @@ export default function AbsenClient({ infoAwal }: { infoAwal: InfoAbsen }) {
     kanvas.getContext('2d')?.drawImage(video, 0, 0);
     const mentah: Blob | null = await new Promise((selesai) => kanvas.toBlob((b) => selesai(b), 'image/jpeg', 0.95));
     if (!mentah) {
-      setPesan({ jenis: 'galat', teks: 'Foto tidak dapat diproses. Coba lagi.' });
+      toast.error('Foto tidak dapat diproses. Coba lagi.');
       return;
     }
     setFoto(mentah);
@@ -122,39 +152,37 @@ export default function AbsenClient({ infoAwal }: { infoAwal: InfoAbsen }) {
       return URL.createObjectURL(mentah);
     });
     setRequestId(crypto.randomUUID());
-    setPesan(null);
   }
 
   async function muatUlang() {
     try {
       const res = await fetch(`/api/absen/info?token=${encodeURIComponent(token)}`);
       if (!res.ok) {
-        setPesan({ jenis: 'galat', teks: 'Link tidak berlaku. Hubungi admin.' });
+        toast.error('Link tidak berlaku. Hubungi admin.');
         return;
       }
       const badan = await res.json();
       setInfo(badan.data as InfoAbsen);
-      setFoto(null);
-      setRequestId(null);
-      setPesan(null);
+      buangFoto();
     } catch {
-      setPesan({ jenis: 'galat', teks: 'Tidak ada koneksi internet. Sambungkan lalu coba lagi.' });
+      toast.error('Tidak ada koneksi internet. Sambungkan lalu coba lagi.');
     }
   }
 
   async function kirim() {
     if (!foto || !requestId) return;
     if (!navigator.onLine) {
-      setPesan({ jenis: 'galat', teks: 'Tidak ada koneksi internet. Sambungkan lalu coba lagi.' });
+      buangFoto();
+      toast.error('Tidak ada koneksi internet. Sambungkan lalu foto ulang.');
       return;
     }
     setMengirim(true);
-    setPesan(null);
     try {
       // Kompresi otomatis (K-53); karyawan tidak melihat proses ini.
       const hasil = await kompresBlobBrowser(foto);
       if (!hasil) {
-        setPesan({ jenis: 'galat', teks: 'Foto terlalu besar, ambil ulang dengan pencahayaan lebih baik.' });
+        buangFoto();
+        toast.error('Foto terlalu besar, ambil ulang dengan pencahayaan lebih baik.');
         return;
       }
       const fd = new FormData();
@@ -167,18 +195,22 @@ export default function AbsenClient({ infoAwal }: { infoAwal: InfoAbsen }) {
       } else if (lokasi.keadaan === 'DITOLAK' || lokasi.keadaan === 'GAGAL') {
         fd.set('lokasi_status', lokasi.keadaan);
       }
-      // request_id DIPAKAI ULANG untuk percobaan ulang foto yang sama (BR-A11).
+      // Setiap foto selalu dapat request_id baru: foto yang gagal ikut dibuang
+      // bersama modalnya, jadi tidak ada percobaan ulang foto yang sama.
       fd.set('request_id', requestId);
       const res = await fetch('/api/absen', { method: 'POST', body: fd });
       const badan = await res.json();
       if (!res.ok) {
-        setPesan({ jenis: 'galat', teks: (badan.pesan as string) ?? 'Absen gagal dikirim dan tidak tersimpan. Silakan coba lagi.' });
+        buangFoto();
+        toast.error((badan.pesan as string) ?? 'Absen gagal dikirim dan tidak tersimpan. Silakan foto ulang.');
         return;
       }
-      setPesan({ jenis: 'sukses', teks: badan.pesan as string });
+      buangFoto();
+      toast.success(badan.pesan as string);
       await muatUlang();
     } catch {
-      setPesan({ jenis: 'galat', teks: 'Tidak ada koneksi internet. Sambungkan lalu coba lagi.' });
+      buangFoto();
+      toast.error('Tidak ada koneksi internet. Sambungkan lalu foto ulang.');
     } finally {
       setMengirim(false);
     }
@@ -186,110 +218,116 @@ export default function AbsenClient({ infoAwal }: { infoAwal: InfoAbsen }) {
 
   if (info.aksi === 'TIDAK_TERSEDIA') {
     return (
-      <Card aria-label="Status absen">
-        <CardContent className="flex flex-col gap-3 py-4">
-          <p className="text-sm">{info.alasan}</p>
-          <Button className={KELAS_SENTUH} onClick={muatUlang}>
-            Periksa lagi
-          </Button>
-          {pesan ? <Pesan isi={pesan} /> : null}
-        </CardContent>
-      </Card>
+      <>
+        <Toaster position="top-center" />
+        <Card aria-label="Status absen">
+          <CardContent className="flex flex-col gap-3 py-4">
+            <p className="text-sm">{info.alasan}</p>
+            <Button className={KELAS_SENTUH} onClick={muatUlang}>
+              Periksa lagi
+            </Button>
+          </CardContent>
+        </Card>
+      </>
     );
   }
 
   return (
-    <Card aria-label="Ambil absen">
-      <CardContent className="flex flex-col gap-3 py-4">
-        {galatKamera ? (
-          <Alert variant="destructive">
-            <AlertDescription>{galatKamera}</AlertDescription>
-          </Alert>
-        ) : (
-          <video
-            ref={videoRef}
-            autoPlay
-            playsInline
-            muted
-            style={{ background: '#000' }}
-            className="aspect-[3/4] w-full rounded-lg object-cover"
-            aria-label="Pratinjau kamera"
-          />
-        )}
-
-        {lokasi.keadaan !== 'TERSEDIA' && lokasi.keadaan !== 'BELUM' ? (
-          <Alert>
-            <AlertDescription>Lokasi tidak aktif. Absen tetap bisa dikirim tanpa lokasi.</AlertDescription>
-          </Alert>
-        ) : null}
-
-        {pratinjau && foto ? (
-          <img src={pratinjau} alt="Hasil foto absen" className="w-full rounded-lg" />
-        ) : null}
-
-        <div className="flex gap-2">
-          {!foto ? (
-            <>
-              <Button className={`flex-1 ${KELAS_SENTUH}`} onClick={ambilFoto} disabled={mengirim || !stream}>
-                Foto
-              </Button>
-              <Button
-                variant="outline"
-                className={`flex-1 ${KELAS_SENTUH}`}
-                onClick={() => mulaiKamera(kamera === 'user' ? 'environment' : 'user')}
-                disabled={mengirim}
-              >
-                Ganti Kamera
-              </Button>
-            </>
+    <>
+      <Toaster position="top-center" />
+      <Card aria-label="Ambil absen">
+        <CardContent className="flex flex-col gap-3 py-4">
+          {galatKamera ? (
+            <Alert variant="destructive">
+              <AlertDescription>{galatKamera}</AlertDescription>
+            </Alert>
           ) : (
-            <>
-              <Button variant="outline" className={`flex-1 ${KELAS_SENTUH}`} onClick={ambilFoto} disabled={mengirim}>
-                Foto Ulang
-              </Button>
-              <Button className={`flex-1 ${KELAS_SENTUH}`} onClick={kirim} disabled={mengirim}>
-                {mengirim ? 'Mengirim…' : info.aksi === 'CHECKOUT' ? 'Absen Check-out' : 'Absen'}
-              </Button>
-            </>
+            <video
+              ref={videoRef}
+              autoPlay
+              playsInline
+              muted
+              style={{ background: '#000' }}
+              className="aspect-[3/4] w-full rounded-lg object-cover"
+              aria-label="Pratinjau kamera"
+            />
           )}
-        </div>
 
-        {info.aksi === 'CHECKOUT' && !foto ? (
-          <p className="text-sm text-muted-foreground">Ada check-in terbuka. Ambil foto untuk check-out.</p>
-        ) : null}
+          {lokasi.keadaan !== 'TERSEDIA' && lokasi.keadaan !== 'BELUM' ? (
+            <Alert>
+              <AlertDescription>Lokasi tidak aktif. Absen tetap bisa dikirim tanpa lokasi.</AlertDescription>
+            </Alert>
+          ) : null}
 
-        {pesan ? (
-          <div className="flex flex-col gap-2">
-            <Pesan isi={pesan} />
-            {pesan.jenis === 'sukses' ? (
-              <Button className={KELAS_SENTUH} onClick={muatUlang}>
-                Selesai
-              </Button>
-            ) : null}
-            {pesan.jenis === 'galat' && foto ? (
-              <Button variant="outline" className={KELAS_SENTUH} onClick={kirim} disabled={mengirim}>
-                Coba Lagi
-              </Button>
-            ) : null}
+          <div className="flex gap-2">
+            <Button className={`flex-1 ${KELAS_SENTUH}`} onClick={ambilFoto} disabled={mengirim || !stream || modalTerbuka}>
+              Foto
+            </Button>
+            <Button
+              variant="outline"
+              className={`flex-1 ${KELAS_SENTUH}`}
+              onClick={() => mulaiKamera(kamera === 'user' ? 'environment' : 'user')}
+              disabled={mengirim || modalTerbuka}
+            >
+              Ganti Kamera
+            </Button>
           </div>
-        ) : null}
-      </CardContent>
-    </Card>
+
+          {info.aksi === 'CHECKOUT' ? (
+            <p className="text-sm text-muted-foreground">Ada check-in terbuka. Ambil foto untuk check-out.</p>
+          ) : null}
+        </CardContent>
+      </Card>
+
+      {/* Modal hasil foto. Sengaja dikunci: abaikan semua permintaan tutup dari
+          klik-luar/Escape — hanya Foto Ulang atau hasil kirim yang menutupnya. */}
+      <Dialog open={modalTerbuka} onOpenChange={() => {}}>
+        <DialogContent showCloseButton={false} aria-describedby={undefined}>
+          <DialogTitle className="text-base font-medium">Periksa hasil foto</DialogTitle>
+          {pratinjau ? (
+            <IsiModalFoto
+              src={pratinjau}
+              aksi={info.aksi}
+              mengirim={mengirim}
+              onFotoUlang={buangFoto}
+              onKirim={kirim}
+            />
+          ) : null}
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 
-/** Pesan sukses/galat. Alert dipakai supaya warna DAN ikon konsisten di dua mode. */
-function Pesan({ isi }: { isi: { jenis: 'sukses' | 'galat'; teks: string } }) {
-  if (isi.jenis === 'sukses') {
-    return (
-      <Alert role="status">
-        <AlertDescription>{isi.teks}</AlertDescription>
-      </Alert>
-    );
-  }
+/**
+ * Isi modal hasil foto. Dipisah dari Dialog agar bisa diuji tanpa portal:
+ * Dialog yang tertutup tidak masuk render statis karena portal. Judul dialog
+ * (DialogTitle, butuh konteks Dialog) dipasang pemanggil di DialogContent.
+ */
+export function IsiModalFoto({
+  src,
+  aksi,
+  mengirim,
+  onFotoUlang,
+  onKirim,
+}: {
+  src: string;
+  aksi: string;
+  mengirim: boolean;
+  onFotoUlang: () => void;
+  onKirim: () => void;
+}) {
   return (
-    <Alert variant="destructive" role="alert">
-      <AlertDescription>{isi.teks}</AlertDescription>
-    </Alert>
+    <>
+      <img src={src} alt="Hasil foto absen" className="w-full rounded-lg" />
+      <div className="flex gap-2">
+        <Button variant="outline" className={`flex-1 ${KELAS_SENTUH}`} onClick={onFotoUlang} disabled={mengirim}>
+          Foto Ulang
+        </Button>
+        <Button className={`flex-1 ${KELAS_SENTUH}`} onClick={onKirim} disabled={mengirim}>
+          {mengirim ? 'Mengirim…' : aksi === 'CHECKOUT' ? 'Absen Check-out' : 'Absen'}
+        </Button>
+      </div>
+    </>
   );
 }

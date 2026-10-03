@@ -11,6 +11,9 @@
  *   - Versi sekarang: komponen shadcn (Card, Badge, Alert, Button, Separator).
  *     Warna dan jarak keduanya datang dari komponen, jadi tidak bisa hilang
  *     diam-diam seperti BUG-UI-08.
+ *   - Versi modal: hasil foto tampil di Dialog yang mengunci latar, pesan
+ *     sukses/galat lewat toast sonner. Foto yang gagal ikut dibuang bersama
+ *     modalnya (keputusan pemilik, opsi b) — tidak ada kirim ulang.
  *
  * Tes di sini memanggil komponen sungguhan lewat renderToStaticMarkup. Yang
  * diperiksa adalah MECHANISME warnanya — bukan hex tertentu — supaya tetap
@@ -21,6 +24,7 @@ import { readFileSync } from 'fs';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { DaftarRiwayat } from '../src/app/a/[token]/page';
+import { IsiModalFoto } from '../src/app/a/[token]/AbsenClient';
 
 const CONTOH_RIWAYAT = [
   { jenis: 'CHECKIN', waktu: '2026-10-03T07:05:00+07:00', status: 'DISETUJUI', alasan_tolak: null },
@@ -208,27 +212,108 @@ describe('BUG-UI-07 — pesan di AbsenClient memakai Alert shadcn', () => {
     expect(kode, 'memakai Alert untuk peringatan lokasi').toMatch(/<Alert>\s*<AlertDescription>Lokasi tidak aktif/);
   });
 
-  it('pesan sukses memakai role="status" dan galat role="alert"', () => {
-    // rules/03: role status/alert wajib supaya pembaca layarlirih.
+  it('hasil kirim memakai toast sonner, bukan state pesan + tombol', () => {
+    // Keputusan pemilik: sukses/gagal kirim ditutup dengan toast. Tombol
+    // "Selesai" dan "Coba Lagi" dihapus — muatUlang otomatis setelah sukses,
+    // foto yang gagal dibuang dan karyawan foto ulang.
     const kode = kodeTanpaKomentar('src/app/a/[token]/AbsenClient.tsx');
-    expect(kode, 'pesan sukses role=status').toMatch(/<Alert role="status">/);
-    expect(kode, 'pesan galat role=alert').toMatch(/role="alert"/);
+    expect(kode, 'toast diimpor dari sonner').toMatch(/import \{[^}]*toast[^}]*\} from 'sonner'/);
+    expect(kode, 'Toaster dipasang di halaman absen').toMatch(/<Toaster position="top-center"/);
+    // Dua cabang render (TIDAK_TERSEDIA dan utama) masing-masing butuh Toaster
+    // sendiri. Menghapus satu saja berarti separuh alur tanpa toast.
+    expect((kode.match(/<Toaster position="top-center"/g) ?? []).length, 'Toaster di kedua cabang').toBe(2);
+    expect(kode, 'sukses memakai toast.success').toMatch(/toast\.success\(/);
+    expect(kode, 'galat memakai toast.error').toMatch(/toast\.error\(/);
+    expect(kode, 'tidak ada state pesan lagi').not.toMatch(/setPesan|useState<\{ jenis/);
+    expect(kode, 'tidak ada tombol Selesai').not.toMatch(/>\s*Selesai\s*</);
+    expect(kode, 'tidak ada tombol Coba Lagi').not.toMatch(/>\s*Coba Lagi\s*</);
   });
 
   it('AlertDescription dipakai, bukan teks mentah di dalam Alert', () => {
     const kode = kodeTanpaKomentar('src/app/a/[token]/AbsenClient.tsx');
     const alerts = kode.match(/<Alert[\s>][\s\S]*?<\/Alert>/g) ?? [];
-    expect(alerts.length, 'jumlah blok Alert').toBeGreaterThanOrEqual(3);
+    expect(alerts.length, 'jumlah blok Alert').toBeGreaterThanOrEqual(2);
     for (const a of alerts) {
       expect(a, 'isi Alert memakai AlertDescription').toContain('AlertDescription');
     }
   });
 
-  it('tombol "Mengirim…" dan status lain memakai Button shadcn', () => {
+  it('tombol memakai Button shadcn, bukan <button> polos', () => {
     const kode = kodeTanpaKomentar('src/app/a/[token]/AbsenClient.tsx');
     // Tidak boleh ada <button> polos.
     expect(kode, 'tidak ada <button> polos').not.toMatch(/<button/);
-    expect((kode.match(/<Button/g) ?? []).length, 'jumlah Button shadcn').toBeGreaterThanOrEqual(6);
+    // Foto, Ganti Kamera, Periksa lagi di halaman utama + Foto Ulang, Absen di modal.
+    expect((kode.match(/<Button/g) ?? []).length, 'jumlah Button shadcn').toBeGreaterThanOrEqual(5);
+    for (const label of ['Foto', 'Ganti Kamera', 'Foto Ulang', 'Periksa lagi']) {
+      expect(kode, `tombol ${label} ada`).toContain(label);
+    }
+  });
+});
+
+describe('Modal hasil foto — mengunci latar sampai ada keputusan', () => {
+  const props = {
+    src: 'blob:hasil-foto',
+    aksi: 'CHECKIN',
+    mengirim: false,
+    onFotoUlang: () => {},
+    onKirim: () => {},
+  };
+
+  function htmlModal(ubah: Partial<typeof props> = {}): string {
+    return renderToStaticMarkup(createElement(IsiModalFoto, { ...props, ...ubah }));
+  }
+
+  it('menampilkan foto besar, tombol Foto Ulang, dan tombol Absen', () => {
+    const h = htmlModal();
+    expect(h, 'foto hasil').toMatch(/<img[^>]*src="blob:hasil-foto"[^>]*alt="Hasil foto absen"/);
+    expect(h).toContain('Foto Ulang');
+    expect(h).toContain('>Absen<');
+    expect((h.match(/data-slot="button"/g) ?? []).length, 'dua tombol shadcn').toBe(2);
+  });
+
+  it('aksi CHECKOUT mengubah label tombol menjadi Absen Check-out', () => {
+    expect(htmlModal({ aksi: 'CHECKOUT' })).toContain('Absen Check-out');
+  });
+
+  it('saat mengirim, tombol nonaktif dan teks menjadi Mengirim…', () => {
+    const h = htmlModal({ mengirim: true });
+    expect(h).toContain('Mengirim…');
+    expect(h, 'kedua tombol disabled').toMatch(/<button[^>]*disabled=""/);
+    expect(h, 'tidak ada Absen yang bisa diklik').not.toMatch(/>Absen</);
+  });
+
+  it('modal dikunci: tanpa tombol tutup, abaikan klik-luar/Escape', () => {
+    // Kalau modal bisa ditutup sembarangan, foto hilang tanpa jejak dan
+    // karyawan bingung — hanya Foto Ulang atau hasil kirim yang menutupnya.
+    const kode = kodeTanpaKomentar('src/app/a/[token]/AbsenClient.tsx');
+    expect(kode, 'DialogContent tanpa tombol tutup').toMatch(/<DialogContent showCloseButton=\{false\}/);
+    expect(kode, 'permintaan tutup dari klik-luar/Escape diabaikan').toMatch(/<Dialog open=\{modalTerbuka\} onOpenChange=\{\(\) => \{\}\}>/);
+  });
+
+  it('modal terbuka tepat saat ada foto yang menunggu keputusan', () => {
+    const kode = kodeTanpaKomentar('src/app/a/[token]/AbsenClient.tsx');
+    expect(kode, 'modalTerbuka dari foto + pratinjau').toMatch(/const modalTerbuka = foto !== null && pratinjau !== null;/);
+  });
+
+  it('tombol utama tidak lagi berubah menjadi Foto Ulang/Absen', () => {
+    // Sebelum modal, tombol utama berganti setelah foto diambil. Sekarang tombol
+    // utama selalu Foto + Ganti Kamera; Foto Ulang/Absen hanya ada di modal.
+    const kode = kodeTanpaKomentar('src/app/a/[token]/AbsenClient.tsx');
+    expect(kode, 'tidak ada cabang {!foto} di tombol utama').not.toMatch(/\{\!foto \?/);
+  });
+
+  it('foto yang gagal ikut dibuang bersama modalnya (opsi b)', () => {
+    // Keputusan pemilik: tidak ada kirim ulang. Setiap cabang kirim — sukses,
+    // gagal, maupun offline — memanggil buangFoto() sebelum toast.
+    // Diperiksa PER CABANG, bukan dihitung total: menghapus satu saja (mis.
+    // cabang kompresi gagal) harus gagal, karena foto basi akan nyangkut.
+    const kode = kodeTanpaKomentar('src/app/a/[token]/AbsenClient.tsx');
+    expect(kode, 'offline: buang dulu baru toast').toMatch(/if \(!navigator\.onLine\) \{\s+buangFoto\(\);/);
+    expect(kode, 'kompresi gagal: buang dulu baru toast').toMatch(/if \(!hasil\) \{\s+buangFoto\(\);/);
+    expect(kode, 'respons gagal: buang dulu baru toast').toMatch(/if \(!res\.ok\) \{\s+buangFoto\(\);/);
+    expect(kode, 'sukses: buang dulu baru toast').toMatch(/buangFoto\(\);\s+toast\.success\(/);
+    expect(kode, 'galat jaringan: buang dulu baru toast').toMatch(/\} catch \{\s+buangFoto\(\);/);
+    expect(kode, 'buangFoto mengosongkan foto, pratinjau, dan requestId').toMatch(/setRequestId\(null\)/);
   });
 });
 
