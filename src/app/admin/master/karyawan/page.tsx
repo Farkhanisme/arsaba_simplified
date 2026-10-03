@@ -3,36 +3,23 @@
 import { Suspense, useCallback, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Toast, pesanGalat, AksesDitolak, adalahAksesDitolak, type Pesan } from '../../komponen';
-
-interface Karyawan {
-  id: number;
-  nama: string;
-  nik: string | null;
-  jabatan: string | null;
-  alamat: string | null;
-  nomor_hp: string | null;
-  kontak_darurat: string | null;
-  aktif: number;
-}
-
-interface Toko {
-  id: number;
-  nama: string;
-  aktif: number;
-}
+import {
+  FilterCariKaryawan,
+  FormulirPindah,
+  FormulirTambahKaryawan,
+  KOSONG,
+  TabelKaryawan,
+  type FormulirKaryawan,
+  type InfoLink,
+  type Karyawan,
+  type Toko,
+} from './komponen';
 
 interface Penempatan {
   toko_id: number;
   berlaku_mulai: string;
   berlaku_sampai: string | null;
 }
-
-interface InfoLink {
-  dibuat_at: string;
-  url: string;
-}
-
-const KOSONG = { nama: '', nik: '', jabatan: '', alamat: '', nomor_hp: '', kontak_darurat: '' };
 
 function HalamanKaryawan() {
   const router = useRouter();
@@ -44,9 +31,9 @@ function HalamanKaryawan() {
   const [linkKaryawan, setLinkKaryawan] = useState<Record<number, InfoLink | null>>({});
   const [pesan, setPesan] = useState<Pesan | null>(null);
   const [aksesDitolak, setAksesDitolak] = useState(false);
-  const [form, setForm] = useState(KOSONG);
+  const [form, setForm] = useState<FormulirKaryawan>(KOSONG);
   const [suntingId, setSuntingId] = useState<number | null>(null);
-  const [sunting, setSunting] = useState(KOSONG);
+  const [sunting, setSunting] = useState<FormulirKaryawan>(KOSONG);
   const [pindah, setPindah] = useState<{ id: number; toko: string; tanggal: string } | null>(null);
 
   const muat = useCallback(async () => {
@@ -223,114 +210,58 @@ function HalamanKaryawan() {
   }
 
   return (
-    <div>
-      <h1 style={{ marginTop: 0 }}>Data Master — Karyawan</h1>
+    <div className="flex flex-col gap-4">
+      <h1 className="mt-0 text-2xl font-semibold tracking-tight">Data Master — Karyawan</h1>
       <Toast pesan={pesan} onTutup={() => setPesan(null)} />
       {aksesDitolak ? <AksesDitolak /> : null}
 
-      <form onSubmit={tambah} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 8, marginBottom: 16, background: '#fff', padding: 12, border: '1px solid #ddd' }}>
-        <label>Nama*<br /><input value={form.nama} onChange={(e) => setForm({ ...form, nama: e.target.value })} required maxLength={200} style={{ padding: 8, width: '90%' }} /></label>
-        <label>NIK<br /><input value={form.nik} onChange={(e) => setForm({ ...form, nik: e.target.value })} maxLength={50} style={{ padding: 8, width: '90%' }} /></label>
-        <label>Jabatan<br /><input value={form.jabatan} onChange={(e) => setForm({ ...form, jabatan: e.target.value })} maxLength={500} style={{ padding: 8, width: '90%' }} /></label>
-        <label>Alamat<br /><input value={form.alamat} onChange={(e) => setForm({ ...form, alamat: e.target.value })} maxLength={500} style={{ padding: 8, width: '90%' }} /></label>
-        <label>Nomor HP<br /><input value={form.nomor_hp} onChange={(e) => setForm({ ...form, nomor_hp: e.target.value })} maxLength={500} style={{ padding: 8, width: '90%' }} /></label>
-        <label>Kontak darurat<br /><input value={form.kontak_darurat} onChange={(e) => setForm({ ...form, kontak_darurat: e.target.value })} maxLength={500} style={{ padding: 8, width: '90%' }} /></label>
-        <div><br /><button type="submit" style={{ padding: '8px 16px' }}>Tambah</button></div>
-      </form>
+      <FormulirTambahKaryawan
+        form={form}
+        onUbah={(sebagian) => setForm({ ...form, ...sebagian })}
+        onTambah={tambah}
+      />
 
-      <div style={{ marginBottom: 12 }}>
-        <label htmlFor="cari">Cari: </label>
-        <input id="cari" defaultValue={cari} onChange={(e) => router.replace(`/admin/master/karyawan?cari=${encodeURIComponent(e.target.value)}`)} placeholder="Filter nama/NIK" style={{ padding: 8 }} />
-      </div>
+      <FilterCariKaryawan
+        cari={cari}
+        onUbahCari={(nilai) => router.replace(`/admin/master/karyawan?cari=${encodeURIComponent(nilai)}`)}
+      />
 
-      {tampil.length === 0 ? (
-        <p>Belum ada karyawan.</p>
-      ) : (
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', background: '#fff', minWidth: 900 }}>
-            <thead>
-              <tr>
-                <th style={{ textAlign: 'left', padding: 8, borderBottom: '2px solid #ddd' }}>Nama</th>
-                <th style={{ textAlign: 'left', padding: 8, borderBottom: '2px solid #ddd' }}>NIK</th>
-                <th style={{ textAlign: 'left', padding: 8, borderBottom: '2px solid #ddd' }}>Jabatan</th>
-                <th style={{ textAlign: 'left', padding: 8, borderBottom: '2px solid #ddd' }}>No. HP</th>
-                <th style={{ textAlign: 'left', padding: 8, borderBottom: '2px solid #ddd' }}>Toko saat ini</th>
-                <th style={{ textAlign: 'left', padding: 8, borderBottom: '2px solid #ddd' }}>Link</th>
-                <th style={{ textAlign: 'left', padding: 8, borderBottom: '2px solid #ddd' }}>Aksi</th>
-              </tr>
-            </thead>
-            <tbody>
-              {tampil.map((k) => {
-                const link = linkKaryawan[k.id];
-                return (
-                  <tr key={k.id}>
-                    <td style={{ padding: 8, borderBottom: '1px solid #eee' }}>
-                      {suntingId === k.id ? (
-                        <input value={sunting.nama} onChange={(e) => setSunting({ ...sunting, nama: e.target.value })} aria-label="Nama karyawan" style={{ padding: 6 }} />
-                      ) : (
-                        <>{k.nama} {k.aktif === 1 ? null : <em>(Nonaktif)</em>}</>
-                      )}
-                    </td>
-                    <td style={{ padding: 8, borderBottom: '1px solid #eee' }}>{k.nik ?? '—'}</td>
-                    <td style={{ padding: 8, borderBottom: '1px solid #eee' }}>{k.jabatan ?? '—'}</td>
-                    <td style={{ padding: 8, borderBottom: '1px solid #eee' }}>{k.nomor_hp ?? '—'}</td>
-                    <td style={{ padding: 8, borderBottom: '1px solid #eee' }}>{tokoKaryawan[k.id] ?? '…'}</td>
-                    <td style={{ padding: 8, borderBottom: '1px solid #eee', maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      {link ? (
-                        <span title={link.url} style={{ fontSize: 12 }}>{link.url}</span>
-                      ) : (
-                        <span style={{ color: '#888' }}>Belum ada link</span>
-                      )}
-                    </td>
-                    <td style={{ padding: 8, borderBottom: '1px solid #eee' }}>
-                      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                        {suntingId === k.id ? (
-                          <>
-                            <button type="button" onClick={() => simpanSunting(k.id)}>Simpan</button>
-                            <button type="button" onClick={() => setSuntingId(null)}>Batal</button>
-                          </>
-                        ) : (
-                          <button type="button" onClick={() => { setSuntingId(k.id); setSunting({ nama: k.nama, nik: k.nik ?? '', jabatan: k.jabatan ?? '', alamat: k.alamat ?? '', nomor_hp: k.nomor_hp ?? '', kontak_darurat: k.kontak_darurat ?? '' }); }}>Ubah</button>
-                        )}
-                        <button type="button" onClick={() => alihAktif(k)}>{k.aktif === 1 ? 'Nonaktifkan' : 'Aktifkan'}</button>
-                        <button type="button" onClick={() => setPindah({ id: k.id, toko: '', tanggal: '' })}>Pindahkan</button>
-                        {link ? (
-                          <>
-                            <button type="button" onClick={() => salin(link.url)}>Salin</button>
-                            <button type="button" onClick={() => buatUlangLink(k.id)}>Buat Ulang</button>
-                            <button type="button" onClick={() => cabutLink(k.id)}>Cabut</button>
-                          </>
-                        ) : (
-                          <button type="button" onClick={() => buatLink(k.id)}>Buat Link</button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      )}
+      <TabelKaryawan
+        daftar={tampil}
+        tokoKaryawan={tokoKaryawan}
+        linkKaryawan={linkKaryawan}
+        suntingId={suntingId}
+        sunting={sunting}
+        onUbahSunting={setSunting}
+        onMulaiSunting={(k) => {
+          setSuntingId(k.id);
+          setSunting({
+            nama: k.nama,
+            nik: k.nik ?? '',
+            jabatan: k.jabatan ?? '',
+            alamat: k.alamat ?? '',
+            nomor_hp: k.nomor_hp ?? '',
+            kontak_darurat: k.kontak_darurat ?? '',
+          });
+        }}
+        onBatalSunting={() => setSuntingId(null)}
+        onSimpanSunting={simpanSunting}
+        onAlihAktif={alihAktif}
+        onMintaPindah={(k) => setPindah({ id: k.id, toko: '', tanggal: '' })}
+        onBuatLink={buatLink}
+        onSalin={salin}
+        onBuatUlangLink={buatUlangLink}
+        onCabutLink={cabutLink}
+      />
 
       {pindah ? (
-        <form onSubmit={kirimPindah} style={{ marginTop: 16, padding: 12, background: '#fff', border: '1px solid #ddd', display: 'flex', gap: 8, alignItems: 'end', flexWrap: 'wrap' }}>
-          <div>
-            <label>Toko tujuan<br />
-              <select value={pindah.toko} onChange={(e) => setPindah({ ...pindah, toko: e.target.value })} required style={{ padding: 8 }}>
-                <option value="">— Pilih —</option>
-                {daftarToko.filter((t) => t.aktif === 1).map((t) => (
-                  <option key={t.id} value={t.id}>{t.nama}</option>
-                ))}
-              </select>
-            </label>
-          </div>
-          <div>
-            <label>Tanggal efektif<br /><input type="date" value={pindah.tanggal} onChange={(e) => setPindah({ ...pindah, tanggal: e.target.value })} required style={{ padding: 8 }} /></label>
-          </div>
-          <button type="submit" style={{ padding: '8px 16px' }}>Pindah</button>
-          <button type="button" onClick={() => setPindah(null)}>Batal</button>
-        </form>
+        <FormulirPindah
+          daftarToko={daftarToko}
+          pindah={pindah}
+          onUbah={setPindah}
+          onBatal={() => setPindah(null)}
+          onKirim={kirimPindah}
+        />
       ) : null}
     </div>
   );
@@ -338,7 +269,7 @@ function HalamanKaryawan() {
 
 export default function Page() {
   return (
-    <Suspense fallback={<p>Memuat…</p>}>
+    <Suspense fallback={<p className="text-sm text-muted-foreground">Memuat…</p>}>
       <HalamanKaryawan />
     </Suspense>
   );

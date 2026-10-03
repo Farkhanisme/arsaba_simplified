@@ -2,50 +2,24 @@
 
 import { Suspense, useCallback, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { AksesDitolak, adalahAksesDitolak } from '../komponen';
+import {
+  FilterTidakBerangkat,
+  FormulirTandai,
+  IsiDialogUbah,
+  PanelGalat,
+  PanelHasilTandai,
+  PanelMemuat,
+  TabelPenandaan,
+  type FormulirTandai as BentukFormulir,
+  type HasilTandai,
+  type Penandaan,
+} from './komponen';
 
-interface Penandaan {
-  id: number;
-  karyawan_id: number;
-  karyawan_nama: string;
-  toko_id: number;
-  toko_nama: string;
-  tanggal: string;
-  jenis: 'IZIN' | 'TANPA_KETERANGAN';
-  catatan: string | null;
-}
-
-interface HasilTandai {
-  dibuat: { karyawan_id: number; tanggal: string }[];
-  ditolak: { karyawan_id: number; tanggal: string; alasan: string }[];
-}
-
-const PESAN_X3 = 'Ada absen aktif pada tanggal ini. Tolak absen tersebut terlebih dahulu.';
-
-function tanggalPendek(t: string): string {
-  const [y, m, d] = t.split('-');
-  return `${d}/${m}/${y}`;
-}
-
-export function PanelHasilTandai({ hasil }: { hasil: HasilTandai }) {
-  return (
-    <div style={{ marginTop: 8, fontSize: 14 }}>
-      <p>
-        {hasil.dibuat.length} tersimpan, {hasil.ditolak.length} ditolak.
-      </p>
-      {hasil.ditolak.length > 0 ? (
-        <ul>
-          {hasil.ditolak.map((d, i) => (
-            <li key={i}>
-              Karyawan #{d.karyawan_id} · {tanggalPendek(d.tanggal)}: {d.alasan}{' '}
-              {d.alasan === PESAN_X3 ? <a href="/admin/verifikasi">Buka Verifikasi</a> : null}
-            </li>
-          ))}
-        </ul>
-      ) : null}
-    </div>
-  );
-}
+export { PanelHasilTandai };
+export type { HasilTandai };
 
 function HalamanTidakBerangkat() {
   const router = useRouter();
@@ -56,7 +30,7 @@ function HalamanTidakBerangkat() {
   const [galat, setGalat] = useState<string | null>(null);
   const [aksesDitolak, setAksesDitolak] = useState(false);
   const [pesan, setPesan] = useState<string | null>(null);
-  const [form, setForm] = useState({ karyawan: [] as number[], dari: '', sampai: '', jenis: 'IZIN', catatan: '' });
+  const [form, setForm] = useState<BentukFormulir>({ karyawan: [], dari: '', sampai: '', jenis: 'IZIN', catatan: '' });
   const [hasil, setHasil] = useState<HasilTandai | null>(null);
   const [ubah, setUbah] = useState<{ id: number; jenis: 'IZIN' | 'TANPA_KETERANGAN'; catatan: string } | null>(null);
 
@@ -152,118 +126,57 @@ function HalamanTidakBerangkat() {
   }
 
   return (
-    <div>
-      <h1 style={{ marginTop: 0 }}>Tandai Tidak Berangkat</h1>
-      {pesan ? <p role="status" style={{ background: '#dcfce7', padding: 8, borderRadius: 4 }}>{pesan}</p> : null}
+    <div className="flex flex-col gap-4">
+      <h1 className="mt-0 text-2xl font-semibold tracking-tight">Tandai Tidak Berangkat</h1>
+      {pesan ? (
+        <Alert className="border-green-300 bg-green-50 text-green-900 dark:border-green-800 dark:bg-green-950 dark:text-green-100">
+          <AlertDescription>{pesan}</AlertDescription>
+        </Alert>
+      ) : null}
 
-      <form onSubmit={kirim} style={{ background: '#fff', border: '1px solid #ddd', padding: 12, maxWidth: 640, marginBottom: 16 }}>
-        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', maxHeight: 160, overflowY: 'auto', marginBottom: 8 }}>
-          {pilihan.karyawan.map((k) => (
-            <label key={k.id}>
-              <input type="checkbox" checked={form.karyawan.includes(k.id)} onChange={(e) => setForm({ ...form, karyawan: e.target.checked ? [...form.karyawan, k.id] : form.karyawan.filter((x) => x !== k.id) })} /> {k.nama}
-            </label>
-          ))}
-        </div>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'end' }}>
-          <label>Tanggal<br /><input type="date" value={form.dari} onChange={(e) => setForm({ ...form, dari: e.target.value })} required style={{ padding: 8 }} /></label>
-          <label>Sampai (opsional)<br /><input type="date" value={form.sampai} onChange={(e) => setForm({ ...form, sampai: e.target.value })} style={{ padding: 8 }} /></label>
-          <label>Jenis<br />
-            <select value={form.jenis} onChange={(e) => setForm({ ...form, jenis: e.target.value })} style={{ padding: 8 }}>
-              <option value="IZIN">Izin</option>
-              <option value="TANPA_KETERANGAN">Tanpa Keterangan</option>
-            </select>
-          </label>
-          <label>Catatan (opsional)<br /><input value={form.catatan} onChange={(e) => setForm({ ...form, catatan: e.target.value })} maxLength={500} style={{ padding: 8 }} /></label>
-          <button type="submit" disabled={form.karyawan.length === 0 || !form.dari} style={{ padding: '8px 16px' }}>Simpan</button>
-        </div>
-      </form>
+      <FormulirTandai pilihanKaryawan={pilihan.karyawan} form={form} onUbah={setForm} onKirim={kirim} />
 
       {hasil ? <PanelHasilTandai hasil={hasil} /> : null}
 
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12, alignItems: 'end' }}>
-        <label>Toko<br />
-          <select value={params.get('toko_id') ?? ''} onChange={(e) => aturParam('toko_id', e.target.value)} style={{ padding: 8 }}>
-            <option value="">Semua</option>
-            {pilihan.toko.map((t) => <option key={t.id} value={t.id}>{t.nama}</option>)}
-          </select>
-        </label>
-        <label>Dari<br /><input type="date" value={params.get('dari') ?? ''} onChange={(e) => aturParam('dari', e.target.value)} style={{ padding: 8 }} /></label>
-        <label>Sampai<br /><input type="date" value={params.get('sampai') ?? ''} onChange={(e) => aturParam('sampai', e.target.value)} style={{ padding: 8 }} /></label>
-      </div>
+      <FilterTidakBerangkat
+        tokoId={params.get('toko_id') ?? ''}
+        dari={params.get('dari') ?? ''}
+        sampai={params.get('sampai') ?? ''}
+        pilihanToko={pilihan.toko}
+        onUbah={aturParam}
+      />
 
       {memuat ? (
-        <p>Memuat…</p>
+        <PanelMemuat />
       ) : aksesDitolak ? (
         <AksesDitolak />
       ) : galat ? (
-        <div><p role="alert">{galat}</p><button type="button" onClick={muat}>Coba lagi</button></div>
-      ) : daftar.length === 0 ? (
-        <p>Belum ada penandaan ketidakhadiran.</p>
+        <PanelGalat pesan={galat} onCobaLagi={muat} />
       ) : (
-        <table style={{ width: '100%', borderCollapse: 'collapse', background: '#fff' }}>
-          <thead style={{ position: 'sticky', top: 0, background: '#fff' }}>
-            <tr>
-              <th style={{ textAlign: 'left', padding: 8, borderBottom: '2px solid #ddd' }}>Tanggal</th>
-              <th style={{ textAlign: 'left', padding: 8, borderBottom: '2px solid #ddd' }}>Karyawan</th>
-              <th style={{ textAlign: 'left', padding: 8, borderBottom: '2px solid #ddd' }}>Toko</th>
-              <th style={{ textAlign: 'left', padding: 8, borderBottom: '2px solid #ddd' }}>Jenis</th>
-              <th style={{ textAlign: 'left', padding: 8, borderBottom: '2px solid #ddd' }}>Catatan</th>
-              <th style={{ textAlign: 'left', padding: 8, borderBottom: '2px solid #ddd' }}>Aksi</th>
-            </tr>
-          </thead>
-          <tbody>
-            {daftar.map((d) => (
-              <tr key={d.id}>
-                <td style={{ padding: 8, borderBottom: '1px solid #eee' }}>{tanggalPendek(d.tanggal)}</td>
-                <td style={{ padding: 8, borderBottom: '1px solid #eee' }}>{d.karyawan_nama}</td>
-                <td style={{ padding: 8, borderBottom: '1px solid #eee' }}>{d.toko_nama}</td>
-                <td style={{ padding: 8, borderBottom: '1px solid #eee' }}>
-                  <span style={{ background: d.jenis === 'IZIN' ? '#dbeafe' : '#fee2e2', padding: '2px 8px', borderRadius: 4, fontSize: 13 }}>
-                    {d.jenis === 'IZIN' ? 'Izin' : 'Tanpa Keterangan'}
-                  </span>
-                </td>
-                <td style={{ padding: 8, borderBottom: '1px solid #eee' }}>{d.catatan ?? '—'}</td>
-                <td style={{ padding: 8, borderBottom: '1px solid #eee' }}>
-                  <div style={{ display: 'flex', gap: 6 }}>
-                    <button type="button" onClick={() => setUbah({ id: d.id, jenis: d.jenis, catatan: d.catatan ?? '' })}>Ubah</button>
-                    <button type="button" onClick={() => hapusBaris(d.id)}>Hapus</button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <TabelPenandaan
+          daftar={daftar}
+          onMintaUbah={(d) => setUbah({ id: d.id, jenis: d.jenis, catatan: d.catatan ?? '' })}
+          onHapus={hapusBaris}
+        />
       )}
 
-      {ubah ? (
-        <div role="dialog" aria-label="Ubah penandaan" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-          <div style={{ background: '#fff', padding: 16, borderRadius: 8, maxWidth: 440, width: '100%' }}>
-            <h2 style={{ marginTop: 0, fontSize: 16 }}>Ubah penandaan</h2>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              <label>Jenis<br />
-                <select value={ubah.jenis} onChange={(e) => setUbah({ ...ubah, jenis: e.target.value as 'IZIN' | 'TANPA_KETERANGAN' })} style={{ padding: 8 }}>
-                  <option value="IZIN">Izin</option>
-                  <option value="TANPA_KETERANGAN">Tanpa Keterangan</option>
-                </select>
-              </label>
-              <label>Catatan<br />
-                <textarea value={ubah.catatan} onChange={(e) => setUbah({ ...ubah, catatan: e.target.value })} rows={2} maxLength={500} style={{ width: '100%', padding: 8 }} />
-              </label>
-            </div>
-            <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-              <button type="button" onClick={() => setUbah(null)}>Batal</button>
-              <button type="button" onClick={simpanUbah}>Simpan</button>
-            </div>
-          </div>
-        </div>
-      ) : null}
+      <Dialog open={ubah !== null} onOpenChange={(buka) => !buka && setUbah(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="sr-only">Ubah penandaan</DialogTitle>
+          </DialogHeader>
+          {ubah ? (
+            <IsiDialogUbah ubah={ubah} onUbah={setUbah} onBatal={() => setUbah(null)} onSimpan={simpanUbah} />
+          ) : null}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
 
 export default function Page() {
   return (
-    <Suspense fallback={<p>Memuat…</p>}>
+    <Suspense fallback={<PanelMemuat />}>
       <HalamanTidakBerangkat />
     </Suspense>
   );

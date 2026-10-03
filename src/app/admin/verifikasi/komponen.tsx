@@ -466,6 +466,13 @@ export function DaftarKartuVerifikasi({
   );
 }
 
+/** M9-02: empty state rules/05 §5.3, kata per kata. */
+export function DaftarKosong() {
+  return (
+    <p className="text-sm text-muted-foreground">Tidak ada absensi yang menunggu verifikasi.</p>
+  );
+}
+
 /** Isi dialog penolakan. Dipisah dari Dialog agar bisa diuji tanpa portal. */
 export function IsiDialogTolak({
   jumlah,

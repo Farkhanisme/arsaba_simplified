@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { PanelUbahPassword } from './komponen';
 
 export default function UbahPasswordPage() {
   const router = useRouter();
@@ -38,62 +39,8 @@ export default function UbahPasswordPage() {
   }
 
   return (
-    <main style={{ maxWidth: 480, margin: '80px auto', padding: 24, fontFamily: 'system-ui' }}>
-      <h1 style={{ fontSize: 22, marginBottom: 4 }}>Ubah Password</h1>
-      <p style={{ color: '#666', fontSize: 14, marginTop: 0 }}>
-        Setelah diganti, seluruh sesi akun ini berakhir dan Anda harus masuk kembali.
-      </p>
-
-      {sukses ? (
-        <p role="status" style={{ color: '#166534' }}>
-          Password berhasil diubah. Silakan masuk kembali.
-        </p>
-      ) : (
-        <form onSubmit={kirim} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <label htmlFor="passwordSaatIni">Password saat ini</label>
-          <input
-            id="passwordSaatIni"
-            name="passwordSaatIni"
-            type="password"
-            required
-            autoComplete="current-password"
-            style={{ padding: 12, fontSize: 16 }}
-          />
-
-          <label htmlFor="passwordBaru">Password baru</label>
-          <input
-            id="passwordBaru"
-            name="passwordBaru"
-            type="password"
-            required
-            minLength={8}
-            autoComplete="new-password"
-            style={{ padding: 12, fontSize: 16 }}
-          />
-          <small style={{ color: '#666' }}>Minimal 8 karakter.</small>
-
-          <label htmlFor="konfirmasi">Konfirmasi password baru</label>
-          <input
-            id="konfirmasi"
-            name="konfirmasi"
-            type="password"
-            required
-            minLength={8}
-            autoComplete="new-password"
-            style={{ padding: 12, fontSize: 16 }}
-          />
-
-          {error ? (
-            <p role="alert" style={{ color: '#b91c1c', margin: 0 }}>
-              {error}
-            </p>
-          ) : null}
-
-          <button type="submit" disabled={mengirim} style={{ padding: 12, fontSize: 16 }}>
-            {mengirim ? 'Mengirim…' : 'Simpan'}
-          </button>
-        </form>
-      )}
+    <main className="mx-auto w-full max-w-md p-6">
+      <PanelUbahPassword mengirim={mengirim} galat={error} sukses={sukses} onKirim={kirim} />
     </main>
   );
 }

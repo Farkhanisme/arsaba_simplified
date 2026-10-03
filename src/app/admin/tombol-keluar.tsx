@@ -2,6 +2,11 @@
 
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
+import { Button } from '@/components/ui/button';
+
+export function labelKeluar(mengirim: boolean): string {
+  return mengirim ? 'Keluar…' : 'Keluar';
+}
 
 export default function TombolKeluar() {
   const router = useRouter();
@@ -18,8 +23,15 @@ export default function TombolKeluar() {
   }
 
   return (
-    <button type="button" onClick={keluar} disabled={mengirim} style={{ padding: '8px 12px', fontSize: 14 }}>
-      {mengirim ? 'Keluar…' : 'Keluar'}
-    </button>
+    <Button
+      type="button"
+      variant="ghost"
+      onClick={keluar}
+      disabled={mengirim}
+      aria-label="Keluar"
+      className="w-full justify-start"
+    >
+      {labelKeluar(mengirim)}
+    </Button>
   );
 }

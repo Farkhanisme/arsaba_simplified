@@ -52,11 +52,14 @@ describe('halaman /admin benar-benar bisa dirender', () => {
     expect(html).toContain('h-[220px]');
   });
 
-  it('halaman memuat dengan keadaan skeleton', async () => {
+  it('halaman memuat dengan keadaan skeleton (UI-2: bukan teks Memuat…)', async () => {
     const { renderToStaticMarkup } = await import('react-dom/server');
     const { createElement } = await import('react');
     // useEffect tidak jalan di render statis -> keadaan memuat.
+    // UI-2 mengganti teks "Memuat…" menjadi Skeleton (rules/05 §5.3 pola).
     const html = renderToStaticMarkup(createElement(HalamanDashboard));
-    expect(html).toContain('Memuat…');
+    expect(html).toContain('aria-label="Memuat"');
+    expect((html.match(/data-slot="skeleton"/g) ?? []).length).toBeGreaterThan(0);
+    expect(html).not.toContain('Memuat…');
   });
 });

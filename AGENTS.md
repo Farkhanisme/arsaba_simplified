@@ -113,6 +113,66 @@ dokumen; tugas agen adalah **menerjemahkan dokumen menjadi kode tanpa mengarang 
   BUG-UI-06 Select base-ui, import `from "cn"`, `data-slot` tertimpa) plus pemetaan
   halaman → rules/05 §5.x → komponen. Inventaris dan angka di prompt sudah diverifikasi
   dengan penghitungan, bukan diketik manual.
+- **UI-2 selesai dan diaudit independen (2026-10-03).** 248 inline style dan 117
+  elemen polos di `src/app/admin/` menjadi **0**; 212 string user-visible pindah ke
+  `komponen.tsx` yang bisa diuji. 622 tes hijau di tiga timezone. Yang diklaim agent
+  **semua terbukti benar** — tidak ada tes yang dilemahkan, tidak ada aturan bisnis
+  yang berubah, tidak ada endpoint yang berubah.
+- **Audit menemukan 4 celah tes yang tidak diketahui agent** — dipindah ke M9 dengan
+  cara reproduksinya di **`rules/19-catatan-m9.md`** (M9-01 s.d. M9-05 + B-20).
+  Pelajarannya: 10 mutasi pilihan agent semuanya lulus, tapi 4 mutasi **yang dipilih
+  dari `rules/05` dan dari yang tidak ada di tes** tidak. Audit yang hanya mengulang
+  mutasi yang sudah ada tidak menambah nilai.
+- **B-20 (jsdom) ditunda pemilik** dengan alasan "nanti saja". Belum ada persetujuan
+  memasang. Cakupan yang disarankan ada di `rules/19` §B-20: empat alur saja, bukan
+  12 halaman.
+- **Prompt M9 siap (`rules/20-agent-prompt-m9.md`), 2026-10-03.** M9 adalah milestone
+  pertama yang **menambah kode server**, bukan cuma presentasi. Yang sudah ada: tabel
+  `audit_log`, izin `audit_log: ['SUPER_ADMIN']`, `catatAudit()`. Yang **nol**: query
+  `SELECT` dari audit_log, route `GET /api/admin/audit-log`, halaman `/admin/audit-log`.
+  Menu sudah punya placeholder `{ label: 'Audit Log', segera: true }`.
+  `next.config.mjs` hanya punya header untuk `/a/:path*`; admin nol — padahal
+  `rules/03` §9.7 minta CSP + header dasar.
+  **Risiko terbesar M9 adalah CSP:** `/a/[token]` memakai `getUserMedia`, jadi CSP yang
+  salah akan mematikan halaman karyawan untuk 26 orang. Syarat mutlak:
+  `git diff --stat src/app/a/` kosong, dan kamera dibuktikan **di browser**, bukan curl.
+- **M9 selesai dan diaudit independen (2026-10-03).** 664 tes hijau di tiga timezone.
+  Yang diklaim agent **semua terbukti benar** — termasuk pengakuan sendiri soal kode mati
+  dan penyimpangan. Terverifikasi: `src/app/a/` `guard.ts` `waktu.ts` `migrations/` kosong ·
+  md5 `466a7b1a…` · SQL audit log aman (`klausa` cuma literal, nilai lewat `args`) ·
+  `guard('audit_log')` persis · `formatWaktuAudit` pakai `slice()` sehingga aman timezone ·
+  `password_hash` tidak pernah masuk audit · 405 tanpa DB. Kelima closure M9-01..M9-05
+  terbukti dengan mutasi audit sendiri; mutasi bonus (hapus `X-Frame-Options`, longgarkan
+  CSP, ubah nama sumber, tambah CSP ke `/a/`, salah nama guard) semuanya tertangkap.
+- **Empat temuan audit M9 dipindah ke M10 (`rules/21-catatan-m10.md`).**
+  **M10-01 (tinggi): `/login` dan `/` tidak punya satu pun header keamanan** — satu-satunya
+  halaman tanpa autentikasi yang menerima password justru tanpa proteksi, padahal
+  `rules/03` §9.7 minta header dasar. M10-02 `unsafe-eval` aktif di produksi · M10-03
+  `ItemMenu.segera` kode mati · M10-04 jsdom (B-20) menunggu keputusan pemilik.
+  **Keempatnya bukan salah agent** — M10-01 dan M10-02 adalah batas cakupan yang saya tulis
+  sendiri di prompt M9.
+- **Pelajaran: prompt M9 punya kontradiksi internal yang saya buat sendiri.**
+  `src/app/admin/verifikasi/**` ada di daftar DILARANG (baris 244) sementara §8 dan
+  tabel D memerintahkan M9-02 dikerjakan di berkas itu. Agent menanganinya benar.
+  **Aturan ke depan:** sebelum mengirim prompt, grep setiap path yang muncul di bagian
+  "dilarang" dan bagian "wajib", pastikan tidak bentrok. Lihat `rules/21` §E.
+- **Prompt M10 siap (`rules/22-agent-prompt-m10.md`), 2026-10-03.** Cakupannya owner yang
+  menetapkan: **tiga** dari empat utang kerja — M10-01 header `/` dan `/login`, M10-02
+  `unsafe-eval` di produksi, M10-03 komentar untuk `ItemMenu.segera`. **jsdom (M10-04)
+  dikeluarkan** sesuai keputusan owner. M10-03 owner memutuskan **dipertahankan** dengan
+  komentar, bukan dihapus — proyek ini memakai pola "Segera" untuk menu yang belum ada.
+  Prompt M10 sengaja kecil: tiga tugas, tiga berkas.
+- **M10-02 adalah satu-satunya tugas yang bisa merusak tanpa error server.** Melepas
+  `unsafe-eval` dari CSP produksi tidak akan memunculkan apa pun di respons HTTP kalau
+  ternyata ada skrip yang memakainya — baru terlihat saat klien membuka halaman. Karena
+  browser tidak terhubung ke sesi agent, bukti terbaik yang ada adalah inventarisasi
+  sumber daya (13 `script src`, 0 non-self) plus login lewat curl. Kalau agent tidak bisa
+  membuktikan kedua mode (produksi tanpa, dev dengan), ia **berhenti dan melapor** —
+  prompt itu memerintahkan hal itu secara eksplisit.
+- **Pemeriksaan silang path dijalankan sebelum mengirim prompt M10.** Pelajaran dari
+  kontradiksi prompt M9 dicatat sebagai langkah wajib: tidak ada path yang boleh muncul
+  di bagian "dilarang" sekaligus bagian "wajib". Tabel silangnya ada di
+  `rules/22` §D.
 - **Pelajaran: aplikasi ini belum pernah dibuka di browser selama 8 milestone.** Membaca kode
   dan menjalankan tes TIDAK sama dengan melihat hasilnya. Milestone presentasi wajib
   diverifikasi dengan membuka aplikasi.
@@ -163,7 +223,9 @@ dokumen; tugas agen adalah **menerjemahkan dokumen menjadi kode tanpa mengarang 
    `rules/12-agent-prompt-m4.md` (M4), `rules/13-agent-prompt-m5.md` (M5),
    `rules/14-agent-prompt-m6.md` (M6), `rules/15-agent-prompt-m7.md` (M7),
    `rules/16-agent-prompt-m8.md` (M8), `rules/17-agent-prompt-ui1.md` (UI-1),
-   `rules/18-agent-prompt-ui2.md` (UI-2).
+   `rules/18-agent-prompt-ui2.md` (UI-2), `rules/20-agent-prompt-m9.md` (M9),
+   `rules/22-agent-prompt-m10.md` (M10).
+   Catatan utang kerja: `rules/19-catatan-m9.md` (M9), `rules/21-catatan-m10.md` (M10).
 2. Mekanisme tag (legenda di `00`) tetap berlaku untuk pertanyaan **baru**: `[KEPUTUSAN]` boleh,
    `[USULAN]` boleh tapi tandai untuk ditinjau, `[BELUM DIPUTUSKAN]` berarti **berhenti** — jangan
    implementasi, jangan nebak. B-01 s.d. B-17 sudah tertutup, jadi pertanyaan baru
@@ -214,7 +276,8 @@ Tidak ada yang terblokir — kolom keputusan menunjukkan keputusan yang dipakai.
 | M8 | Rekap, pra-syarat ekspor, Excel, `log_ekspor`, penguncian periode | K-13, K-32, K-33 | **SELESAI** 2026-10-03 |
 | UI-1 | Pondasi desain (Tailwind v4 + shadcn), mode gelap, layout, dashboard + grafik | — | prompt siap |
 | UI-2 | Redesign 12 halaman admin sisanya | — | **prompt siap** (`rules/18`) |
-| M9 | Audit log UI, hardening, aksesibilitas, QA menyeluruh | — | — |
+| M9 | Audit log UI, hardening, aksesibilitas, QA menyeluruh | — | **SELESAI** 2026-10-03 · 664 tes |
+| M10 | Header keamanan `/` dan `/login`, `unsafe-eval` di produksi, kode mati | `rules/03` §9.7 | **prompt siap** (`rules/22`) · 3 dari 4 utang kerja |
 
 ## Yang paling mudah salah
 

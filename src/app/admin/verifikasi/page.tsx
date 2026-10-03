@@ -19,6 +19,7 @@ import {
   PanelGalat,
   PanelMemuat,
   DaftarKartuVerifikasi,
+  DaftarKosong,
   kelompokkan,
   type Baris,
   type FilterVerifikasi,
@@ -222,7 +223,7 @@ function HalamanVerifikasi() {
       ) : galat ? (
         <PanelGalat pesan={galat} onCobaLagi={muat} />
       ) : daftar.length === 0 ? (
-        <p className="text-sm text-muted-foreground">Tidak ada absensi yang menunggu verifikasi.</p>
+        <DaftarKosong />
       ) : (
         <DaftarKartuVerifikasi
           kelompok={kelompok}

@@ -1,8 +1,14 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { Button } from '@/components/ui/button';
 
 const KUNCI = 'arsaba-tema';
+
+export function labelTema(siap: boolean, gelap: boolean): string {
+  if (!siap) return 'Tema';
+  return gelap ? '☀️ Terang' : '🌙 Gelap';
+}
 
 /**
  * Pengalih tema terang/gelap. Pilihan disimpan di localStorage; nilai awal
@@ -30,14 +36,15 @@ export default function PengalihTema() {
   }
 
   return (
-    <button
+    <Button
       type="button"
+      variant="ghost"
       onClick={alih}
       aria-label={gelap ? 'Ganti ke mode terang' : 'Ganti ke mode gelap'}
       aria-pressed={gelap}
-      style={{ padding: '8px 12px', fontSize: 14 }}
+      className="w-full justify-start"
     >
-      {siap ? (gelap ? '☀️ Terang' : '🌙 Gelap') : 'Tema'}
-    </button>
+      {labelTema(siap, gelap)}
+    </Button>
   );
 }

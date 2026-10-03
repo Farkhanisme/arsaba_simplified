@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { Toast, pesanGalat, AksesDitolak, adalahAksesDitolak, type Pesan } from '../komponen';
+import { CatatanTelegram, PanelPengaturan } from './komponen';
 
 export default function HalamanPengaturan() {
   const [ambang, setAmbang] = useState('5');
@@ -43,26 +44,14 @@ export default function HalamanPengaturan() {
   }
 
   return (
-    <div>
-      <h1 style={{ marginTop: 0 }}>Pengaturan</h1>
+    <div className="flex flex-col gap-4">
+      <h1 className="mt-0 text-2xl font-semibold tracking-tight">Pengaturan</h1>
       <Toast pesan={pesan} onTutup={() => setPesan(null)} />
       {aksesDitolak ? <AksesDitolak /> : null}
 
-      <form onSubmit={simpan} style={{ background: '#fff', padding: 16, border: '1px solid #ddd', maxWidth: 480 }}>
-        <div style={{ marginBottom: 12 }}>
-          <label htmlFor="ambang">Ambang terlambat (menit)<br />
-            <input id="ambang" type="number" min={0} step={1} value={ambang} onChange={(e) => setAmbang(e.target.value)} required style={{ padding: 8, width: 120 }} />
-          </label>
-          <p style={{ fontSize: 13, color: '#555' }}>
-            Check-in terlambat bila selisih menit melebihi ambang ini. Nilai bawaan: 5.
-          </p>
-        </div>
-        <button type="submit" style={{ padding: '8px 16px' }}>Simpan</button>
-      </form>
+      <PanelPengaturan ambang={ambang} onUbahAmbang={setAmbang} onSimpan={simpan} />
 
-      <p style={{ fontSize: 13, color: '#555', marginTop: 16 }}>
-        Konfigurasi bot Telegram diatur lewat variabel lingkungan server dan tidak ditampilkan di halaman ini.
-      </p>
+      <CatatanTelegram />
     </div>
   );
 }

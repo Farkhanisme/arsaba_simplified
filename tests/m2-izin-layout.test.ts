@@ -207,7 +207,10 @@ describe('M2 izin dan layout', () => {
     expect(teksSuper).toContain('/admin/tidak-berangkat');
     expect(teksSuper).toContain('"/admin"');
     expect(teksSuper).toContain('/admin/rekap');
-    expect((teksSuper.match(/"segera":true/g) || []).length).toBe(1);
+    // M9: Audit Log bukan lagi placeholder — segera:true menjadi 0 dan
+    // tautannya muncul untuk SUPER_ADMIN.
+    expect((teksSuper.match(/"segera":true/g) || []).length).toBe(0);
+    expect(teksSuper).toContain('/admin/audit-log');
   });
 
   it('layout mengarahkan tanpa sesi ke /login', async () => {
@@ -220,12 +223,16 @@ describe('M2 izin dan layout', () => {
     const superHtml = JSON.stringify(await AdminLayout({ children: null }));
     expect(superHtml).toContain('/admin/master/toko');
     expect(superHtml).toContain('/admin/akun');
-    expect(superHtml).toContain('Segera');
+    // M9: tidak ada lagi penanda "(Segera)"; Audit Log aktif untuk SUPER_ADMIN.
+    expect(superHtml).not.toContain('Segera');
+    expect(superHtml).toContain('/admin/audit-log');
 
     holder.cookie = admin;
     const adminHtml = JSON.stringify(await AdminLayout({ children: null }));
     expect(adminHtml).not.toContain('/admin/master/toko');
     expect(adminHtml).not.toContain('/admin/akun');
+    // M9: ADMIN tidak melihat menu Audit Log (dan endpoint menolak di server).
+    expect(adminHtml).not.toContain('/admin/audit-log');
     expect(adminHtml).toContain('/admin/ubah-password');
     expect(adminHtml).toContain('/admin/verifikasi');
     holder.cookie = undefined;

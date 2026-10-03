@@ -747,3 +747,139 @@ tapi perhatikan `CardHeader` punya `group/card-header`, jadi pola harus
 
 Aturan: kalau perlu `data-slot` sendiri, pakai `data-testid` atau `data-nama`, jangan
 `data-slot`.
+
+
+---
+
+## 15. Audit independen UI-2 (2026-10-03)
+
+UI-2 dikerjakan agent, lalu diaudit ulang secara independen — bukan menerima laporannya.
+
+### Yang diverifikasi benar (7 dari 7 klaim)
+
+| Klaim | Cara verifikasi | Hasil |
+|---|---|---|
+| `src/app/a/`, `src/server/`, `src/app/api/`, `migrations/` tidak tersentuh | `git diff --stat` per path | kosong semua |
+| 248 inline style -> 0 | hitung ulang `style={{` dengan regex | 0 |
+| 117 elemen polos -> 0 | `<table\|select\|textarea\|input\|button\b[^>]*>` tanpa `data-slot` | 0 milik kita; sisa 3 `<input aria-hidden="true">` dari `Checkbox` base-ui |
+| 78 tes baru | hitung `it(` per berkas | 622 = 544 + 78, hijau di 3 timezone |
+| 11/11 halaman admin 200 | `curl` terautentikasi ke 11 route | semua 200, 36-55 KB, tanpa `Application error` |
+| tidak ada teks Inggris | sapuan teks node JSX per halaman | bersih; agent malah menemukan 4 teks Inggris yang **saya** lewatkan di `sidebar.tsx` (`Displays the mobile sidebar.`, `Toggle Sidebar` x3) |
+| 10 mutasi tertangkap | 3 mutasi ulang di halaman berbeda | benar untuk mutasi yang dipilih agent |
+
+Tambahan yang tidak ada di laporan agent dan tetap diverifikasi:
+
+- **Tidak ada perubahan endpoint.** `diff` seluruh `fetch()` dan `router.replace`
+  kosong — string URL-nya identik.
+- **Aturan bisnis utuh di UI:** `maxLength` 16 -> 16, `required` 19 -> 19,
+  `min 8` (K-48), `maks 2` slot (K-17), `max={1440}` (K-54).
+- **`Select` base-ui tidak dipakai di mana pun** (BUG-UI-06 dihindari).
+- **Tidak ada hex/rgb literal** di halaman admin.
+- **Dua tes lama yang diubah justru diperkuat.** `not.toContain('disabled')`
+  -> `/<button[^>]*\sdisabled=""/`, karena kelas dasar shadcn Button memuat literal
+  `disabled:`. Ini memperbaiki pagar yang rapuh, bukan melonggarkan.
+- **Pola terlarang tidak dipakai.** 3 kemunculan `expect(true).toBe(true)` semuanya di
+  **komentar** yang menjelaskan pola itu; `existsSync`/`execSync` hanya di helper
+  penyiapan database.
+
+### Yang bermasalah: 4 celah tes (M9-01 s.d. M9-04)
+
+Rincian + reproduksi di `rules/19-catatan-m9.md`.
+
+| # | Yang dihapus saat mutasi | Spec | Hasil mutasi |
+|---|---|---|---|
+| 1 | `Minta Super Admin menambah template di Data Master` | rules/05 §5.4 | 124/124 hijau |
+| 2 | `Tidak ada absensi yang menunggu verifikasi.` | rules/05 §5.3 **verbatim** | 124/124 hijau |
+| 3 | `maxLength={500}` | — | 116/116 hijau |
+| 4 | `(min 8)` | K-48 | 116/116 hijau |
+
+Nomor 2 berutang pada halaman verifikasi yang dibangun sendiri — pagar itu tidak
+pernah ada sejak halaman itu dibuat. Nomor 4 tidak berbahaya: `minLength={8}` sudah
+diuji, K-48 fungsionalnya tertutup.
+
+### Regresi kecil: M9-05
+
+`aria-label="Panel sel"` di jadwal hilang. `PanelSel` kini `Card` tanpa nama aksesibel.
+Pengguna reader layar kehilangan penanda landmark. Tidak ada teks yang hilang bagi
+pengguna sighted.
+
+### Tiga kesalahan pengukuran di audit sendiri — semuanya sempat menghasilkan
+
+kesimpulan yang salah sebelum diperbaiki:
+
+1. **`cp -r backup src/` tidak meng-undo mutasi.** Karena `src/` sudah ada,
+   hasilnya `src/jadwal` di dalam `src/jadwal`, jadi file asli tidak tersentuh dan
+   mutasi tetap hidup. Dua hasil mutasi sempat terlewat karena ini. Restoration yang
+   benar: `rm -rf src` lalu `cp -r backup src`.
+2. **`grep -oE '<button[^>]*>' | grep -c data-slot` tidak bisa menghitung.**
+   `grep -o` hanya mengambil tag pembuka, yang memang tidak pernah memuat atribut.
+   Sem sempat melaporkan "84 elemen polos tersisa" padahal 0.
+3. **Saring string "yang hilang" dengan `>\s*([^<>{}]+?)\s*<` ikut menangkap
+   TypeScript** (`(null);`, `([]);`, `const [x, setX] = useState`), sehingga
+   menyimpulkan ada 41 string hilang padahal hanya 12 dan semuanya bukan konten.
+
+**Pelajaran: ukur ulang sebelum melapor.** Dan untuk menghitung "apa yang hilang",
+pilih mutasi dari dokumen, bukan dari kode yang sudah dibaca.
+
+---
+
+## 16. M9 — Header keamanan admin + CSP (2026-10-03)
+
+**Keputusan.** `/admin/:path*` mendapat `X-Content-Type-Options: nosniff`,
+`Referrer-Policy: strict-origin-when-cross-origin`, `X-Frame-Options: DENY`,
+dan CSP (`default-src 'self'`, `script-src 'self' 'unsafe-inline' 'unsafe-eval'`,
+`style-src 'self' 'unsafe-inline'`, `img-src 'self' data: blob:`,
+`font-src 'self' data:`, `connect-src 'self'`, `frame-ancestors 'none'`,
+`base-uri 'self'`, `form-action 'self'`). `/a/:path*` SENGAJA tanpa CSP —
+satu direktif salah mematikan `getUserMedia` 26 karyawan; izin kamera tetap
+lewat `Permissions-Policy: camera=(self)` yang sudah ada.
+
+**Yang diverifikasi ke dokumentasi resmi (diperiksa 2026-10-03):**
+
+- Direktif CSP yang dipakai semuanya ada di referensi MDN: `default-src`,
+  `script-src`, `style-src`, `img-src`, `font-src`, `connect-src`,
+  `frame-ancestors`, `base-uri`, `form-action`, plus ekspresi sumber `'self'`,
+  `'unsafe-inline'`, `'unsafe-eval'`. MDN juga mencatat `'unsafe-inline'` dan
+  `'unsafe-eval'` melemahkan CSP — dipakai di sini karena Next.js menyuntik
+  skrip/gaya inline; tanpa keduanya halaman admin blank. Ini tradeoff sadar,
+  bukan kelalaian.
+  Sumber: https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Content-Security-Policy
+- `X-Content-Type-Options: nosniff`, `Referrer-Policy`,
+  `X-Frame-Options: DENY`, dan `Permissions-Policy` adalah header yang
+  dideskripsikan OWASP Secure Headers Project sebagai header pengerasan standar.
+  Sumber: https://owasp.org/www-project-secure-headers/
+- Mekanisme `headers()` dengan `source` per path adalah perilaku Next.js yang
+  sudah terbukti di repo ini: aturan `/a/:path*` yang sama melayani header
+  kamera di produksi sebelum M9.
+
+**Bukti terkirim:** `curl -I` ke `/admin` dan `/a/<token>` (lihat laporan M9),
+plus `tests/m9-header.test.ts` yang memanggil `headers()` sungguhan dari
+`next.config.mjs` (mutasi: hapus CSP → 1 gagal).
+
+---
+
+## 17. M10 — CSP `headers()` tergantung mode + `script-src` di /login (2026-10-03)
+
+**Yang diverifikasi ke dokumentasi resmi Next.js (diperiksa 2026-10-03):**
+
+1. `headers()` boleh berupa fungsi sync/async yang mengembalikan daftar aturan
+   — jadi boleh membaca `process.env.NODE_ENV` di dalamnya. Contoh resmi memakai
+   pola yang sama persis: `const isDev = process.env.NODE_ENV === 'development'`
+   lalu `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ''}`.
+   Sumber: https://nextjs.org/docs/app/api-reference/config/next-config-js/headers
+   (bagian "Without Nonces") dan https://nextjs.org/docs/app/guides/content-security-policy
+2. Kutipan persis dari panduan CSP Next.js: "In development, you will need to
+   enable `'unsafe-eval'` because React uses `eval`..." dan "`unsafe-eval` is
+   not required for production. Neither React nor Next.js use `eval` in
+   production by default." — ini dasar M10-02: produksi tanpa `unsafe-eval`,
+   dev tetap memakainya (HMR).
+   Sumber: https://nextjs.org/docs/app/guides/content-security-policy
+   (bagian "Development vs Production Considerations").
+
+**Kenapa `/login` tetap memakai `script-src 'self' 'unsafe-inline'`:**
+HTML produksi `/login` memuat 3 `<script>` inline Next.js tanpa nonce, dan
+halamannya komponen klien (`onSubmit` fetch + `router.push`). Tanpa
+`'unsafe-inline'`, hidrasi mati dan form tak pernah mencegat submit — login
+rusak tanpa error server. Dibuktikan lewat inventarisasi `curl` (13 script src
+0 non-self di 12 halaman audit M9; 3 inline di /login) + login curl → sesi →
+`/admin` 200 di server produksi.

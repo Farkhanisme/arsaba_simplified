@@ -36,8 +36,10 @@ describe('halaman /admin/rekap benar-benar bisa dirender', () => {
     expect(html).toContain('masih ada 3 absensi menunggu verifikasi');
     expect(html).toContain('2 check-in tanpa check-out');
     expect(html).toContain('href="/admin/verifikasi?status=MENUNGGU&amp;dari=2026-10-01&amp;sampai=2026-10-03&amp;toko_id=2"');
-    // Gagal -> tombol ekspor nonaktif.
-    expect(html).toContain('disabled');
+    // Gagal -> tombol ekspor nonaktif. Penanda: atribut disabled="" — bukan
+    // substring "disabled", karena kelas dasar Button shadcn memuat literal
+    // "disabled:" (jebakan UI-2 yang sudah pernah menipu).
+    expect(html).toMatch(/<button[^>]*\sdisabled=""/);
   });
 
   it('peringatan saja: tombol ekspor TETAP aktif', async () => {
@@ -61,9 +63,11 @@ describe('halaman /admin/rekap benar-benar bisa dirender', () => {
     expect(html).toContain('Semua absensi pada periode ini sudah diverifikasi.');
     expect(html).toContain('1 karyawan terjadwal tanpa absen dan tanpa penandaan');
     expect(html).not.toContain('Ekspor belum bisa dilakukan');
-    // Peringatan saja -> tombol ekspor TETAP aktif (tanpa disabled).
+    // Peringatan saja -> tombol ekspor TETAP aktif (tanpa atribut disabled).
+    // Lihat catatan di atas: kelas Button memuat "disabled:", jadi yang
+    // diperiksa adalah atribut disabled="", bukan substring.
     expect(html).toContain('Unduh Excel (.xlsx)');
-    expect(html).not.toContain('disabled');
+    expect(html).not.toMatch(/<button[^>]*\sdisabled=""/);
   });
 
   it('nama sheet sesuai: tabel pratinjau kolom BR-R4', async () => {

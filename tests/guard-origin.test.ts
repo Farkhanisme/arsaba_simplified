@@ -16,6 +16,7 @@ import { GET as rekapRoute } from '../src/app/api/admin/rekap/route';
 import { POST as rekapPeriksaRoute } from '../src/app/api/admin/rekap/periksa/route';
 import { POST as rekapEksporRoute } from '../src/app/api/admin/rekap/ekspor/route';
 import { GET as dashboardRoute } from '../src/app/api/admin/dashboard/route';
+import { GET as auditLogRoute } from '../src/app/api/admin/audit-log/route';
 import { POST as ubahPasswordRoute } from '../src/app/api/admin/ubah-password/route';
 import { GET as akunRoute, POST as akunBuatRoute } from '../src/app/api/admin/akun/route';
 import { GET as akunIdRoute, PUT as akunUbahRoute } from '../src/app/api/admin/akun/[id]/route';
@@ -65,6 +66,7 @@ const ROUTE_GUARD: DaftarRoute[] = [
   { nama: 'POST /api/admin/rekap/periksa', metode: 'POST', url: '/api/admin/rekap/periksa', panggil: rekapPeriksaRoute },
   { nama: 'POST /api/admin/rekap/ekspor', metode: 'POST', url: '/api/admin/rekap/ekspor', panggil: rekapEksporRoute },
   { nama: 'GET  /api/admin/dashboard', metode: 'GET', url: '/api/admin/dashboard', panggil: dashboardRoute },
+  { nama: 'GET  /api/admin/audit-log', metode: 'GET', url: '/api/admin/audit-log', panggil: auditLogRoute },
   { nama: 'POST /api/admin/ubah-password', metode: 'POST', url: '/api/admin/ubah-password', panggil: ubahPasswordRoute },
 
   { nama: 'GET  /api/admin/akun', metode: 'GET', url: '/api/admin/akun', panggil: akunRoute },

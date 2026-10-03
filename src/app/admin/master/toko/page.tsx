@@ -3,13 +3,7 @@
 import { Suspense, useCallback, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Toast, pesanGalat, AksesDitolak, adalahAksesDitolak, type Pesan } from '../../komponen';
-
-interface Toko {
-  id: number;
-  nama: string;
-  aktif: number;
-  dibuat_at: string;
-}
+import { FilterCariToko, FormulirTambahToko, TabelToko, type Toko } from './komponen';
 
 function HalamanToko() {
   const router = useRouter();
@@ -88,67 +82,38 @@ function HalamanToko() {
   }
 
   return (
-    <div>
-      <h1 style={{ marginTop: 0 }}>Data Master — Toko</h1>
+    <div className="flex flex-col gap-4">
+      <h1 className="mt-0 text-2xl font-semibold tracking-tight">Data Master — Toko</h1>
       <Toast pesan={pesan} onTutup={() => setPesan(null)} />
       {aksesDitolak ? <AksesDitolak /> : null}
 
-      <form onSubmit={tambah} style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
-        <label htmlFor="nama-baru" className="sr-only">Nama toko baru</label>
-        <input id="nama-baru" value={namaBaru} onChange={(e) => setNamaBaru(e.target.value)} placeholder="Nama toko baru" required maxLength={100} style={{ padding: 8, fontSize: 14, flex: 1 }} />
-        <button type="submit" style={{ padding: '8px 16px' }}>Tambah</button>
-      </form>
+      <FormulirTambahToko namaBaru={namaBaru} onUbahNama={setNamaBaru} onTambah={tambah} />
 
-      <div style={{ marginBottom: 12 }}>
-        <label htmlFor="cari">Cari: </label>
-        <input id="cari" defaultValue={cari} onChange={(e) => router.replace(`/admin/master/toko?cari=${encodeURIComponent(e.target.value)}`)} placeholder="Filter nama toko" style={{ padding: 8, fontSize: 14 }} />
-      </div>
+      <FilterCariToko
+        cari={cari}
+        onUbahCari={(nilai) => router.replace(`/admin/master/toko?cari=${encodeURIComponent(nilai)}`)}
+      />
 
-      {tampil.length === 0 ? (
-        <p>Belum ada toko.</p>
-      ) : (
-        <table style={{ width: '100%', borderCollapse: 'collapse', background: '#fff' }}>
-          <thead>
-            <tr>
-              <th style={{ textAlign: 'left', padding: 8, borderBottom: '2px solid #ddd' }}>Nama</th>
-              <th style={{ textAlign: 'left', padding: 8, borderBottom: '2px solid #ddd' }}>Status</th>
-              <th style={{ textAlign: 'left', padding: 8, borderBottom: '2px solid #ddd' }}>Aksi</th>
-            </tr>
-          </thead>
-          <tbody>
-            {tampil.map((t) => (
-              <tr key={t.id}>
-                <td style={{ padding: 8, borderBottom: '1px solid #eee' }}>
-                  {suntingId === t.id ? (
-                    <input value={suntingNama} onChange={(e) => setSuntingNama(e.target.value)} maxLength={100} style={{ padding: 6 }} aria-label="Nama toko" />
-                  ) : (
-                    t.nama
-                  )}
-                </td>
-                <td style={{ padding: 8, borderBottom: '1px solid #eee' }}>{t.aktif === 1 ? 'Aktif' : 'Nonaktif'}</td>
-                <td style={{ padding: 8, borderBottom: '1px solid #eee', display: 'flex', gap: 8 }}>
-                  {suntingId === t.id ? (
-                    <>
-                      <button type="button" onClick={() => simpanSunting(t.id)}>Simpan</button>
-                      <button type="button" onClick={() => setSuntingId(null)}>Batal</button>
-                    </>
-                  ) : (
-                    <button type="button" onClick={() => { setSuntingId(t.id); setSuntingNama(t.nama); }}>Ubah</button>
-                  )}
-                  <button type="button" onClick={() => alihAktif(t)}>{t.aktif === 1 ? 'Nonaktifkan' : 'Aktifkan'}</button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
+      <TabelToko
+        daftar={tampil}
+        suntingId={suntingId}
+        suntingNama={suntingNama}
+        onUbahSuntingNama={setSuntingNama}
+        onMulaiSunting={(t) => {
+          setSuntingId(t.id);
+          setSuntingNama(t.nama);
+        }}
+        onBatalSunting={() => setSuntingId(null)}
+        onSimpanSunting={simpanSunting}
+        onAlihAktif={alihAktif}
+      />
     </div>
   );
 }
 
 export default function Page() {
   return (
-    <Suspense fallback={<p>Memuat…</p>}>
+    <Suspense fallback={<p className="text-sm text-muted-foreground">Memuat…</p>}>
       <HalamanToko />
     </Suspense>
   );

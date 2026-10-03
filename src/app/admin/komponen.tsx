@@ -1,6 +1,10 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export interface Pesan {
   jenis: 'sukses' | 'galat';
@@ -10,9 +14,12 @@ export interface Pesan {
 /**
  * Toast bersama halaman admin (rules/05 §6): sukses hijau hilang sendiri,
  * error merah menetap sampai ditutup.
+ *
+ * Memakai Alert + Button shadcn, tanpa inline style dan tanpa button polos.
+ * Warna dipertahankan semantiknya: sukses hijau, galat merah (destructive).
  */
 export function Toast({ pesan, onTutup }: { pesan: Pesan | null; onTutup: () => void }) {
-  const [terlihat, setTerlihat] = useState(false);
+  const [terlihat, setTerlihat] = useState(() => pesan !== null);
 
   useEffect(() => {
     if (!pesan) {
@@ -30,19 +37,34 @@ export function Toast({ pesan, onTutup }: { pesan: Pesan | null; onTutup: () => 
   }, [pesan, onTutup]);
 
   if (!pesan || !terlihat) return null;
-  const gaya =
-    pesan.jenis === 'sukses'
-      ? { background: '#dcfce7', color: '#166534', border: '1px solid #86efac' }
-      : { background: '#fee2e2', color: '#991b1b', border: '1px solid #fca5a5' };
+  if (pesan.jenis === 'sukses') {
+    return (
+      <Alert
+        role="status"
+        className="mb-3 border-green-300 bg-green-50 text-green-900 dark:border-green-800 dark:bg-green-950 dark:text-green-100"
+      >
+        <AlertDescription>{pesan.teks}</AlertDescription>
+      </Alert>
+    );
+  }
   return (
-    <div role={pesan.jenis === 'sukses' ? 'status' : 'alert'} style={{ ...gaya, padding: '10px 12px', borderRadius: 6, marginBottom: 12, display: 'flex', justifyContent: 'space-between', gap: 8 }}>
-      <span>{pesan.teks}</span>
-      {pesan.jenis === 'galat' ? (
-        <button type="button" onClick={() => { setTerlihat(false); onTutup(); }} aria-label="Tutup pesan" style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16 }}>
-          ✕
-        </button>
-      ) : null}
-    </div>
+    <Alert variant="destructive" role="alert" className="mb-3">
+      <AlertDescription className="flex items-center justify-between gap-2">
+        <span>{pesan.teks}</span>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={() => {
+            setTerlihat(false);
+            onTutup();
+          }}
+          aria-label="Tutup pesan"
+        >
+          Tutup
+        </Button>
+      </AlertDescription>
+    </Alert>
   );
 }
 
@@ -78,9 +100,38 @@ export async function adalahAksesDitolak(res: Response): Promise<boolean> {
  */
 export function AksesDitolak() {
   return (
-    <div role="alert" style={{ background: '#fff', border: '1px solid #ddd', borderRadius: 8, padding: 24, maxWidth: 480 }}>
-      <h1 style={{ fontSize: 18, margin: '0 0 8px' }}>Akses ditolak</h1>
-      <p style={{ margin: 0 }}>Anda tidak punya akses ke halaman ini.</p>
+    <Card className="max-w-xl">
+      <CardHeader>
+        <CardTitle>Akses ditolak</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <p className="text-sm text-muted-foreground">Anda tidak punya akses ke halaman ini.</p>
+      </CardContent>
+    </Card>
+  );
+}
+
+/** Galat umum halaman admin: pesan + tombol "Coba lagi" (rules/05 §5.x). */
+export function PanelGalat({ pesan, onCobaLagi }: { pesan: string; onCobaLagi: () => void }) {
+  return (
+    <Alert variant="destructive">
+      <AlertDescription className="flex flex-wrap items-center gap-3">
+        <span>{pesan}</span>
+        <Button size="sm" variant="outline" onClick={onCobaLagi}>
+          Coba lagi
+        </Button>
+      </AlertDescription>
+    </Alert>
+  );
+}
+
+/** Memuat umum halaman admin: skeleton baris, bukan teks "Memuat…". */
+export function PanelMemuat({ jumlahBaris = 5 }: { jumlahBaris?: number }) {
+  return (
+    <div aria-label="Memuat" className="flex flex-col gap-2">
+      {Array.from({ length: jumlahBaris }, (_, i) => (
+        <Skeleton key={i} className="h-10 w-full" />
+      ))}
     </div>
   );
 }

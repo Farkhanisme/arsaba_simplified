@@ -17,7 +17,6 @@ import {
   SidebarHeader,
   SidebarInset,
   SidebarMenu,
-  SidebarMenuButton,
   SidebarMenuItem,
   SidebarProvider,
   SidebarTrigger,
@@ -56,8 +55,8 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     <SidebarProvider>
       <Sidebar collapsible="offcanvas">
         <SidebarHeader>
-          <div style={{ fontWeight: 700, fontSize: 16 }}>Arsaba</div>
-          <div style={{ fontSize: 12 }} className="text-muted-foreground">
+          <div className="text-base font-bold">Arsaba</div>
+          <div className="text-xs text-muted-foreground">
             {sesi.username} · {sesi.peran === 'SUPER_ADMIN' ? 'Super Admin' : 'Admin'}
           </div>
         </SidebarHeader>
@@ -68,15 +67,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
               <SidebarGroupContent>
                 <SidebarMenu>
                   {kelompok.item.map((item) =>
-                    item.segera ? (
-                      <SidebarMenuItem key={item.label}>
-                        <SidebarMenuButton disabled>
-                          <span>
-                            {item.label} <em style={{ fontSize: 12 }}>(Segera)</em>
-                          </span>
-                        </SidebarMenuButton>
-                      </SidebarMenuItem>
-                    ) : item.label === 'Keluar' ? (
+                    item.label === 'Keluar' ? (
                       <SidebarMenuItem key={item.label}>
                         <TombolKeluar />
                       </SidebarMenuItem>
@@ -94,10 +85,10 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         </SidebarFooter>
       </Sidebar>
       <SidebarInset>
-        <header style={{ display: 'flex', alignItems: 'center', gap: 8, padding: 12 }}>
+        <header className="flex items-center gap-2 p-3">
           <SidebarTrigger aria-label="Buka menu" />
         </header>
-        <main style={{ padding: '0 24px 24px' }}>{children}</main>
+        <main className="px-6 pb-6">{children}</main>
       </SidebarInset>
     </SidebarProvider>
   );

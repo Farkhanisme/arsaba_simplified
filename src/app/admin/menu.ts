@@ -3,7 +3,11 @@ import type { Peran } from '../../server/izin';
 export interface ItemMenu {
   label: string;
   href?: string;
-  /** Menu milestone lain: tampil nonaktif dengan label "Segera". */
+  /**
+   * Penanda menu yang belum ada halamannya: tampil nonaktif berlabel "Segera".
+   * Sengaja dipertahankan walau saat ini tidak ada item yang memakainya — pola
+   * ini dipakai lagi begitu ada menu baru yang halamannya belum dibangun (M10-03).
+   */
   segera?: boolean;
 }
 
@@ -44,7 +48,7 @@ export function menuUntukPeran(peran: Peran): KelompokMenu[] {
       item: [
         { label: 'Akun Admin', href: '/admin/akun' },
         { label: 'Pengaturan', href: '/admin/pengaturan' },
-        { label: 'Audit Log', segera: true },
+        { label: 'Audit Log', href: '/admin/audit-log' },
       ],
     });
   }
