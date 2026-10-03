@@ -7,7 +7,8 @@
  * Yang dilakukan:
  *   1. Menjalankan migrasi 0001_init.sql
  *   2. Membuat dua akun admin (superadmin dan admin) dari SEED_PASSWORD
- *   3. Mengisi data demo: 10 toko, 26 karyawan, jadwal, dan riwayat absensi
+ *   3. Mengisi data master: 10 toko, 26 karyawan, dan penempatan
+ *      (shift template, jadwal, dan absensi TIDAK diisi — lihat skripnya)
  *
  * PENTING: langkah 3 OPSIONAL. Lewati dengan --minimal kalau Anda hanya ingin
  * database kosong untuk keperluan lain:
@@ -48,9 +49,9 @@ jalankan('npx tsx scripts/migrate.ts', '1/3 migrasi');
 jalankan('npx tsx scripts/seed.ts', '2/3 akun admin');
 
 if (MINIMAL) {
-  console.log('\nSelesai (mode minimal — tanpa data demo).');
+  console.log('\nSelesai (mode minimal — tanpa data master).');
 } else {
-  jalankan('npx tsx scripts/isi-data-demo.ts', '3/3 data demo');
+  jalankan('npx tsx scripts/isi-data-demo.ts', '3/3 data master');
   console.log('\nSelesai. Database pengembangan siap.');
 }
 
