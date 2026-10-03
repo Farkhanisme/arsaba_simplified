@@ -344,3 +344,28 @@ describe('Kamera — alur wajib tidak boleh berubah', () => {
     }
   });
 });
+describe('BUG-UI-09 — "Absen hari ini" langsung muncul tanpa reload manual', () => {
+  it('muatUlang menyegarkan Server Component lewat router.refresh', () => {
+    // Akar bugnya: DaftarRiwayat ("Absen hari ini") dirender Server Component
+    // page.tsx dari data saat halaman dibuka, sedangkan muatUlang() hanya
+    // mengupdate state lokal AbsenClient. Tanpa router.refresh(), daftar di
+    // bawah tidak pernah berubah sampai reload manual.
+    // useEffect/useState tidak jalan di render statis, jadi yang diperiksa
+    // adalah KODE muatUlang — sama seperti tes handler lain di berkas ini.
+    const kode = kodeTanpaKomentar('src/app/a/[token]/AbsenClient.tsx');
+    expect(kode, 'useRouter diimpor dari next/navigation').toMatch(
+      /import \{[^}]*useRouter[^}]*\} from 'next\/navigation'/,
+    );
+    expect(kode, 'router dibuat di komponen').toMatch(/const router = useRouter\(\);/);
+    expect(kode, 'muatUlang memanggil router.refresh setelah setInfo').toMatch(
+      /setInfo\(badan\.data as InfoAbsen\);\s+buangFoto\(\);\s+router\.refresh\(\);/,
+    );
+  });
+
+  it('kirim sukses memicu muatUlang sehingga daftar ikut segar', () => {
+    // kirim() yang berhasil harus mengakhiri dengan await muatUlang() — itu
+    // satu-satunya jalur yang menyegarkan daftar "Absen hari ini".
+    const kode = kodeTanpaKomentar('src/app/a/[token]/AbsenClient.tsx');
+    expect(kode, 'kirim sukses memanggil muatUlang').toMatch(/toast\.success\(badan\.pesan as string\);\s+await muatUlang\(\);/);
+  });
+});

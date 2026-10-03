@@ -33,7 +33,7 @@
  * bawaan. Jangan dikecilkan tanpa membaca rules/05 §3.
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
@@ -53,6 +53,7 @@ export default function AbsenClient({ infoAwal }: { infoAwal: InfoAbsen }) {
   // URL) — tidak dikirim lewat props agar tak terserialisasi ke HTML.
   const params = useParams<{ token: string }>();
   const token = params.token;
+  const router = useRouter();
   const [info, setInfo] = useState<InfoAbsen>(infoAwal);
   const [kamera, setKamera] = useState<'user' | 'environment'>('user');
   const [stream, setStream] = useState<MediaStream | null>(null);
@@ -154,6 +155,17 @@ export default function AbsenClient({ infoAwal }: { infoAwal: InfoAbsen }) {
     setRequestId(crypto.randomUUID());
   }
 
+  /**
+   * Memuat ulang info absen dari server.
+   *
+   * Dua state diperbarui sekaligus, karena halaman ini punya DUA sumber data:
+   *   1. State lokal komponen ini (kartu kamera: aksi CHECKIN/CHECKOUT) — lewat setInfo.
+   *   2. Server Component di page.tsx ("Absen hari ini") — lewat router.refresh().
+   *
+   * Tanpa router.refresh(), daftar "Absen hari ini" tetap memakai data saat
+   * halaman dibuka dan baru muncul setelah reload manual (BUG-UI-09). Refresh
+   * tidak me-remount komponen ini — stream kamera dan foto tetap utuh.
+   */
   async function muatUlang() {
     try {
       const res = await fetch(`/api/absen/info?token=${encodeURIComponent(token)}`);
@@ -164,6 +176,7 @@ export default function AbsenClient({ infoAwal }: { infoAwal: InfoAbsen }) {
       const badan = await res.json();
       setInfo(badan.data as InfoAbsen);
       buangFoto();
+      router.refresh();
     } catch {
       toast.error('Tidak ada koneksi internet. Sambungkan lalu coba lagi.');
     }
