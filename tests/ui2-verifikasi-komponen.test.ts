@@ -344,6 +344,10 @@ describe('KartuVerifikasi', () => {
       }),
     );
     expect(html).toContain('Dikoreksi');
+      // Badge memakai ikon Lucide, bukan karakter emoji.
+      expect(html, 'tidak ada karakter pensil emoji').not.toContain('✎');
+      expect(html, 'tidak ada panah teks untuk pasangan').not.toContain('↳');
+      expect(html, 'ikon lucide ter-render sebagai svg').toContain('<svg');
     expect(html).toContain('Ditolak: Foto tidak jelas');
   });
 

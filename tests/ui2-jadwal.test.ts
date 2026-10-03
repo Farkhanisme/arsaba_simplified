@@ -113,7 +113,11 @@ describe('GridJadwal (baris karyawan, kolom tanggal, Weekend)', () => {
     expect(html).toContain('(Weekend)');
     expect(html).toContain('Siti');
     expect(html).toContain('Pagi 07:00–15:00');
-    expect(html).toContain('★ Khusus');
+    // Badge khusus memakai ikon Lucide, bukan karakter ★ (emoji tampil beda
+    // di tiap HP dan tidak ikut mode gelap).
+    expect(html).toContain('Khusus');
+    expect(html, 'tidak ada karakter bintang emoji').not.toContain('★');
+    expect(html, 'ikon lucide ter-render sebagai svg').toContain('<svg');
     expect(html).toContain('data-slot="table"');
     expect(html).toContain('data-slot="table-head"');
     expect(html).toContain('data-slot="button"');

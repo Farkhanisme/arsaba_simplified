@@ -34,6 +34,7 @@
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import { CameraIcon, CheckIcon, RefreshCwIcon, RotateCcwIcon, SwitchCameraIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
@@ -237,7 +238,7 @@ export default function AbsenClient({ infoAwal }: { infoAwal: InfoAbsen }) {
           <CardContent className="flex flex-col gap-3 py-4">
             <p className="text-sm">{info.alasan}</p>
             <Button className={KELAS_SENTUH} onClick={muatUlang}>
-              Periksa lagi
+              <RefreshCwIcon />Periksa lagi
             </Button>
           </CardContent>
         </Card>
@@ -274,7 +275,7 @@ export default function AbsenClient({ infoAwal }: { infoAwal: InfoAbsen }) {
 
           <div className="flex gap-2">
             <Button className={`flex-1 ${KELAS_SENTUH}`} onClick={ambilFoto} disabled={mengirim || !stream || modalTerbuka}>
-              Foto
+              <CameraIcon />Foto
             </Button>
             <Button
               variant="outline"
@@ -282,7 +283,7 @@ export default function AbsenClient({ infoAwal }: { infoAwal: InfoAbsen }) {
               onClick={() => mulaiKamera(kamera === 'user' ? 'environment' : 'user')}
               disabled={mengirim || modalTerbuka}
             >
-              Ganti Kamera
+              <SwitchCameraIcon />Ganti Kamera
             </Button>
           </div>
 
@@ -335,10 +336,10 @@ export function IsiModalFoto({
       <img src={src} alt="Hasil foto absen" className="w-full rounded-lg" />
       <div className="flex gap-2">
         <Button variant="outline" className={`flex-1 ${KELAS_SENTUH}`} onClick={onFotoUlang} disabled={mengirim}>
-          Foto Ulang
+          <RotateCcwIcon />Foto Ulang
         </Button>
         <Button className={`flex-1 ${KELAS_SENTUH}`} onClick={onKirim} disabled={mengirim}>
-          {mengirim ? 'Mengirim…' : aksi === 'CHECKOUT' ? 'Absen Check-out' : 'Absen'}
+          {mengirim ? 'Mengirim…' : aksi === 'CHECKOUT' ? (<><CheckIcon />Absen Check-out</>) : (<><CheckIcon />Absen</>)}
         </Button>
       </div>
     </>

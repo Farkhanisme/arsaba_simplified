@@ -9,6 +9,7 @@
  * `renderToStaticMarkup` tidak bisa membuktikannya.
  */
 
+import { CornerDownRightIcon, PencilIcon } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -322,11 +323,11 @@ export function KartuVerifikasi({
           <CardTitle className="text-base">{b.karyawan_nama}</CardTitle>
           <span className="text-sm text-muted-foreground">
             {b.jenis === 'CHECKIN' ? 'Check-in' : 'Check-out'}
-            {b.jenis === 'CHECKOUT' && b.checkin_id !== null ? ` ↳ #${b.checkin_id}` : null}
+            {b.jenis === 'CHECKOUT' && b.checkin_id !== null ? (<span className="inline-flex items-center gap-0.5 text-xs text-muted-foreground"><CornerDownRightIcon />#{b.checkin_id}</span>) : null}
           </span>
           <span className="ml-auto flex flex-wrap items-center gap-1.5">
             <LabelStatus status={b.status} />
-            {b.sumber === 'KOREKSI_ADMIN' ? <Badge variant="outline">✎ Dikoreksi</Badge> : null}
+            {b.sumber === 'KOREKSI_ADMIN' ? <Badge variant="outline"><PencilIcon />Dikoreksi</Badge> : null}
           </span>
         </div>
         <div className="text-xs text-muted-foreground">

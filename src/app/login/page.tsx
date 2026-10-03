@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { LogInIcon } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -88,7 +89,7 @@ export default function LoginPage() {
             ) : null}
 
             <Button type="submit" disabled={mengirim}>
-              {mengirim ? 'Memeriksa…' : 'Masuk'}
+              {mengirim ? 'Memeriksa…' : (<><LogInIcon />Masuk</>)}
             </Button>
           </form>
         </CardContent>

@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
+import { LogOutIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 export function labelKeluar(mengirim: boolean): string {
@@ -31,6 +32,7 @@ export default function TombolKeluar() {
       aria-label="Keluar"
       className="w-full justify-start"
     >
+      <LogOutIcon />
       {labelKeluar(mengirim)}
     </Button>
   );

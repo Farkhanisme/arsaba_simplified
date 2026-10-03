@@ -9,6 +9,7 @@
  * diuji tanpa merender komponen klien yang butuh `next/navigation`.
  */
 
+import { StarIcon, TriangleAlertIcon } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -199,9 +200,9 @@ export function GridJadwal({
                           <span className="flex flex-col items-start gap-1 text-left">
                             <span>{j.slot.map((s) => `${s.nama} ${s.jam_mulai}–${s.jam_selesai}`).join(' + ')}</span>
                             <span className="flex items-center gap-1">
-                              {j.is_override === 1 ? <Badge variant="outline">★ Khusus</Badge> : null}
+                              {j.is_override === 1 ? <Badge variant="outline"><StarIcon />Khusus</Badge> : null}
                               {j.peringatan.length > 0 ? (
-                                <span title="Jam slot saling tumpang tindih"> ⚠</span>
+                                <span title="Jam slot saling tumpang tindih" className="inline-flex items-center text-amber-600 dark:text-amber-400"><TriangleAlertIcon /></span>
                               ) : null}
                             </span>
                           </span>
@@ -276,8 +277,8 @@ export function PanelSel({
           <div className="flex flex-col gap-1 text-sm">
             <div>{jadwalSel.slot.map((s) => `${s.nama} · ${s.jam_mulai}–${s.jam_selesai}`).join(' + ')}</div>
             {jadwalSel.is_override === 1 ? (
-              <span>
-                ★ Khusus{jadwalSel.catatan ? ` — ${jadwalSel.catatan}` : ''}
+              <span className="inline-flex items-center gap-1">
+                <StarIcon />Khusus{jadwalSel.catatan ? ` — ${jadwalSel.catatan}` : ''}
               </span>
             ) : null}
             {jadwalSel.peringatan.length > 0 ? (
