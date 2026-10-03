@@ -8,97 +8,27 @@
  * Kompresi JPEG otomatis (src/lib/kompres.ts). Lokasi apa pun tidak
  * menghalangi kirim. request_id dibuat saat foto diambil, dipakai ulang
  * untuk percobaan ulang foto yang sama; Foto Ulang -> request_id baru.
+ *
+ * Komponen shadcn dipakai sejak 2026-10-03 (sebelumnya inline style dengan
+ * warna literal, BUG-UI-07).
+ *
+ * CATATAN SENTUH: `Button` shadcn hanya sampai `lg` = h-9 = 36px, sedangkan
+ * rules/05 baris 23 mewajibkan target sentuh minimum 44x44 px. Karena itu
+ * `KELAS_SENTUH` menambah tinggi ke 48px lewat className, bukan memakai size
+ * bawaan. Jangan dikecilkan tanpa membaca rules/05 §3.
  */
-import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useParams } from 'next/navigation';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 import type { InfoAbsen } from '../../../server/absen-info';
 import { kompresBlobBrowser } from '../../../lib/kompres';
 
 type StatusLokasi = { keadaan: 'TERSEDIA'; lat: number; lng: number } | { keadaan: 'DITOLAK' | 'GAGAL' | 'BELUM' };
 
-/**
- * Gaya bersama memakai token CSS, bukan warna literal.
- *
- * BUG-UI-07: `background: '#fff'` dan `border: '1px solid #ddd'` tidak pernah
- * berubah saat mode gelap aktif. Panel tetap putih, teks tetap gelap — di HP
- * layar terang kontrasnya batas, di layar gelap hampir tidak terbaca.
- *
- * Token `--card`, `--border`, `--foreground` punya nilai berbeda di `:root` dan
- * `.dark` (src/app/globals.css), jadi semua ikut gelap tanpa logika tambahan.
- */
-const gayaKartu: CSSProperties = {
-  background: 'var(--card)',
-  color: 'var(--card-foreground)',
-  border: '1px solid var(--border)',
-  borderRadius: 8,
-  padding: 12,
-};
-
-/** Tombol besar: tinggi sentuh 44px (K-53) + warna token. */
-const gayaTombol: CSSProperties = {
-  flex: 1,
-  padding: 12,
-  fontSize: 16,
-  minHeight: 44,
-  borderRadius: 8,
-  border: '1px solid var(--border)',
-  background: 'var(--secondary)',
-  color: 'var(--secondary-foreground)',
-  cursor: 'pointer',
-};
-
-/** Tombol utama (aksi absen) — warna primary, tetap terbaca di dua mode. */
-const gayaTombolUtama: CSSProperties = {
-  ...gayaTombol,
-  background: 'var(--primary)',
-  color: 'var(--primary-foreground)',
-  borderColor: 'var(--primary)',
-};
-
-/** Tombol nonaktif. */
-const gayaTombolMati: CSSProperties = {
-  ...gayaTombol,
-  opacity: 0.5,
-  cursor: 'not-allowed',
-};
-
-const gayaTombolMatiUtama: CSSProperties = {
-  ...gayaTombolUtama,
-  opacity: 0.5,
-  cursor: 'not-allowed',
-};
-
-/**
- * Warna pesan. Semuanya lewat token supaya kontrasnya terjamin di dua mode —
- * warna literal `#fee2e2` di mode gelap jadi abu-abu muda dengan teks merah tua
- * yang nyaris tidak terbaca.
- */
-const gayaPesanSukses: CSSProperties = {
-  background: 'var(--badge-setuju)',
-  color: 'var(--badge-setuju-teks)',
-  border: '1px solid var(--badge-setuju-teks)',
-  padding: 8,
-  borderRadius: 4,
-  margin: '8px 0 0',
-};
-
-const gayaPesanGalat: CSSProperties = {
-  background: 'var(--badge-ditolak)',
-  color: 'var(--badge-ditolak-teks)',
-  border: '1px solid var(--badge-ditolak-teks)',
-  padding: 8,
-  borderRadius: 4,
-  margin: '8px 0 0',
-};
-
-const gayaPesanPeringatan: CSSProperties = {
-  background: 'var(--badge-menunggu)',
-  color: 'var(--badge-menunggu-teks)',
-  border: '1px solid var(--badge-menunggu-teks)',
-  padding: 8,
-  borderRadius: 4,
-  margin: '8px 0 0',
-};
+/** rules/05: target sentuh minimum 44x44 px. 48px memberi ruang aman. */
+const KELAS_SENTUH = 'h-12 text-base';
 
 export default function AbsenClient({ infoAwal }: { infoAwal: InfoAbsen }) {
   // Token dibaca dari URL di browser (pemilik link sudah memilikinya lewat
@@ -141,7 +71,7 @@ export default function AbsenClient({ infoAwal }: { infoAwal: InfoAbsen }) {
     }
   }, []);
 
-  // Kamera + lokasi dimulai saat halaman dibuka.
+  // Kamera + lokasi dimulai saat halaman dibuka (rules/05 §3: pratinjau langsung).
   useEffect(() => {
     void mulaiKamera('user');
     if ('geolocation' in navigator) {
@@ -256,80 +186,110 @@ export default function AbsenClient({ infoAwal }: { infoAwal: InfoAbsen }) {
 
   if (info.aksi === 'TIDAK_TERSEDIA') {
     return (
-      <section aria-label="Status absen" style={gayaKartu}>
-        <p style={{ margin: '0 0 8px' }}>{info.alasan}</p>
-        <button type="button" onClick={muatUlang} style={gayaTombolUtama}>
-          Periksa lagi
-        </button>
-        {pesan ? (
-          <p role={pesan.jenis === 'sukses' ? 'status' : 'alert'} style={pesan.jenis === 'sukses' ? gayaPesanSukses : gayaPesanGalat}>
-            {pesan.teks}
-          </p>
-        ) : null}
-      </section>
+      <Card aria-label="Status absen">
+        <CardContent className="flex flex-col gap-3 py-4">
+          <p className="text-sm">{info.alasan}</p>
+          <Button className={KELAS_SENTUH} onClick={muatUlang}>
+            Periksa lagi
+          </Button>
+          {pesan ? <Pesan isi={pesan} /> : null}
+        </CardContent>
+      </Card>
     );
   }
 
   return (
-    <section aria-label="Ambil absen" style={gayaKartu}>
-      {galatKamera ? (
-        <p role="alert" style={gayaPesanGalat}>{galatKamera}</p>
-      ) : (
-        <video ref={videoRef} autoPlay playsInline muted style={{ width: '100%', borderRadius: 8, background: '#000' }} aria-label="Pratinjau kamera" />
-      )}
-      {lokasi.keadaan !== 'TERSEDIA' && lokasi.keadaan !== 'BELUM' ? (
-        <p role="status" style={gayaPesanPeringatan}>
-          Lokasi tidak aktif. Absen tetap bisa dikirim tanpa lokasi.
-        </p>
-      ) : null}
-
-      {pratinjau && foto ? (
-        <img src={pratinjau} alt="Hasil foto absen" style={{ width: '100%', borderRadius: 8, marginTop: 8 }} />
-      ) : null}
-
-      <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
-        {!foto ? (
-          <>
-            <button type="button" onClick={ambilFoto} disabled={mengirim || !stream} style={mengirim || !stream ? gayaTombolMati : gayaTombol}>
-              Foto
-            </button>
-            <button type="button" onClick={() => mulaiKamera(kamera === 'user' ? 'environment' : 'user')} disabled={mengirim} style={mengirim ? gayaTombolMati : gayaTombol}>
-              Ganti Kamera
-            </button>
-          </>
+    <Card aria-label="Ambil absen">
+      <CardContent className="flex flex-col gap-3 py-4">
+        {galatKamera ? (
+          <Alert variant="destructive">
+            <AlertDescription>{galatKamera}</AlertDescription>
+          </Alert>
         ) : (
-          <>
-            <button type="button" onClick={ambilFoto} disabled={mengirim} style={mengirim ? gayaTombolMati : gayaTombol}>
-              Foto Ulang
-            </button>
-            <button type="button" onClick={kirim} disabled={mengirim} style={mengirim ? gayaTombolMatiUtama : gayaTombolUtama}>
-              {mengirim ? 'Mengirim…' : info.aksi === 'CHECKOUT' ? 'Absen Check-out' : 'Absen'}
-            </button>
-          </>
+          <video
+            ref={videoRef}
+            autoPlay
+            playsInline
+            muted
+            style={{ background: '#000' }}
+            className="aspect-[3/4] w-full rounded-lg object-cover"
+            aria-label="Pratinjau kamera"
+          />
         )}
-      </div>
 
-      {info.aksi === 'CHECKOUT' && !foto ? (
-        <p style={{ fontSize: 14, color: 'var(--muted-foreground)' }}>Ada check-in terbuka. Ambil foto untuk check-out.</p>
-      ) : null}
+        {lokasi.keadaan !== 'TERSEDIA' && lokasi.keadaan !== 'BELUM' ? (
+          <Alert>
+            <AlertDescription>Lokasi tidak aktif. Absen tetap bisa dikirim tanpa lokasi.</AlertDescription>
+          </Alert>
+        ) : null}
 
-      {pesan ? (
-        <div style={{ marginTop: 8 }}>
-          <p role={pesan.jenis === 'sukses' ? 'status' : 'alert'} style={pesan.jenis === 'sukses' ? gayaPesanSukses : gayaPesanGalat}>
-            {pesan.teks}
-          </p>
-          {pesan.jenis === 'sukses' ? (
-            <button type="button" onClick={muatUlang} style={gayaTombolUtama}>
-              Selesai
-            </button>
-          ) : null}
-          {pesan.jenis === 'galat' && foto ? (
-            <button type="button" onClick={kirim} disabled={mengirim} style={mengirim ? gayaTombolMati : gayaTombol}>
-              Coba Lagi
-            </button>
-          ) : null}
+        {pratinjau && foto ? (
+          <img src={pratinjau} alt="Hasil foto absen" className="w-full rounded-lg" />
+        ) : null}
+
+        <div className="flex gap-2">
+          {!foto ? (
+            <>
+              <Button className={`flex-1 ${KELAS_SENTUH}`} onClick={ambilFoto} disabled={mengirim || !stream}>
+                Foto
+              </Button>
+              <Button
+                variant="outline"
+                className={`flex-1 ${KELAS_SENTUH}`}
+                onClick={() => mulaiKamera(kamera === 'user' ? 'environment' : 'user')}
+                disabled={mengirim}
+              >
+                Ganti Kamera
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button variant="outline" className={`flex-1 ${KELAS_SENTUH}`} onClick={ambilFoto} disabled={mengirim}>
+                Foto Ulang
+              </Button>
+              <Button className={`flex-1 ${KELAS_SENTUH}`} onClick={kirim} disabled={mengirim}>
+                {mengirim ? 'Mengirim…' : info.aksi === 'CHECKOUT' ? 'Absen Check-out' : 'Absen'}
+              </Button>
+            </>
+          )}
         </div>
-      ) : null}
-    </section>
+
+        {info.aksi === 'CHECKOUT' && !foto ? (
+          <p className="text-sm text-muted-foreground">Ada check-in terbuka. Ambil foto untuk check-out.</p>
+        ) : null}
+
+        {pesan ? (
+          <div className="flex flex-col gap-2">
+            <Pesan isi={pesan} />
+            {pesan.jenis === 'sukses' ? (
+              <Button className={KELAS_SENTUH} onClick={muatUlang}>
+                Selesai
+              </Button>
+            ) : null}
+            {pesan.jenis === 'galat' && foto ? (
+              <Button variant="outline" className={KELAS_SENTUH} onClick={kirim} disabled={mengirim}>
+                Coba Lagi
+              </Button>
+            ) : null}
+          </div>
+        ) : null}
+      </CardContent>
+    </Card>
+  );
+}
+
+/** Pesan sukses/galat. Alert dipakai supaya warna DAN ikon konsisten di dua mode. */
+function Pesan({ isi }: { isi: { jenis: 'sukses' | 'galat'; teks: string } }) {
+  if (isi.jenis === 'sukses') {
+    return (
+      <Alert role="status">
+        <AlertDescription>{isi.teks}</AlertDescription>
+      </Alert>
+    );
+  }
+  return (
+    <Alert variant="destructive" role="alert">
+      <AlertDescription>{isi.teks}</AlertDescription>
+    </Alert>
   );
 }

@@ -1,11 +1,22 @@
 import { notFound } from 'next/navigation';
-import type { CSSProperties } from 'react';
 import { muatInfoAbsen } from '../../../server/absen-info';
+import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Separator } from '@/components/ui/separator';
 import AbsenClient from './AbsenClient';
 
 /**
  * Halaman absen karyawan (US-K1). Publik — token link yang memverifikasi.
  * Token tak dikenal/dicabut -> pesan generik (BR-A1), tanpa membocorkan data.
+ *
+ * Memakai komponen shadcn (Card, Badge, Separator) sejak 2026-10-03. Sebelumnya
+ * 100% inline style dengan warna literal, yang membuat panel tetap putih saat
+ * mode gelap aktif (BUG-UI-07). Warna sekarang datang dari token CSS shadcn,
+ * jadi otomatis mengikuti mode terang dan gelap.
+ *
+ * Komponen-komponen ini ringan: tidak ada grafik, tidak ada dialog, tidak ada
+ * state. rules/05 §3 merancang alur ini sengaja sesederhana mungkin karena
+ * dipakai 26 orang di HP dengan jaringan seluler.
  */
 export default async function HalamanAbsen({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
@@ -13,77 +24,74 @@ export default async function HalamanAbsen({ params }: { params: Promise<{ token
   if (!info) notFound();
 
   return (
-    <main style={{ maxWidth: 480, margin: '0 auto', padding: 16, fontFamily: 'system-ui', fontSize: 16 }}>
-      <header style={{ marginBottom: 12 }}>
-        <h1 style={{ fontSize: 20, margin: '8px 0 4px' }}>{info.nama}</h1>
-        <p style={{ margin: 0, color: 'var(--muted-foreground)' }}>{info.toko}</p>
-        <p style={{ margin: '4px 0 0', color: 'var(--muted-foreground)' }}>
+    <main className="mx-auto flex w-full max-w-[480px] flex-col gap-4 p-4">
+      <header>
+        <h1 className="text-xl font-semibold tracking-tight">{info.nama}</h1>
+        <p className="text-sm text-muted-foreground">{info.toko}</p>
+        <p className="text-sm text-muted-foreground">
           {info.tanggalPanjang} · <span suppressHydrationWarning>{info.jam} WIB</span>
         </p>
       </header>
 
-      <section aria-label="Jadwal hari ini" style={gayaKartu}>
-        <h2 style={{ fontSize: 16, margin: '0 0 8px' }}>Jadwal hari ini</h2>
-        {!info.jadwal || info.jadwal.slot.length === 0 ? (
-          <p style={{ margin: 0 }}>Tidak ada jadwal (absen tetap bisa dilakukan).</p>
-        ) : (
-          <ul style={{ margin: 0, paddingLeft: 20 }}>
-            {info.jadwal.slot.map((s, i) => (
-              <li key={i}>
-                {s.nama} · {s.jam_mulai}–{s.jam_selesai}
-                {info.jadwal!.khusus ? ' (Jadwal khusus)' : ''}
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
+      {/* Jarak antar kartu datang dari gap-4 pada <main>.
+          Sebelumnya jarak ini hilang karena marginBottom ikut hilang saat
+          gayaKartu diekstrak (BUG-UI-08). */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Jadwal hari ini</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {!info.jadwal || info.jadwal.slot.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Tidak ada jadwal (absen tetap bisa dilakukan).</p>
+          ) : (
+            <ul className="flex flex-col gap-1">
+              {info.jadwal.slot.map((s, i) => (
+                <li key={i} className="text-sm">
+                  {s.nama} · {s.jam_mulai}–{s.jam_selesai}
+                  {info.jadwal!.khusus ? ' (Jadwal khusus)' : ''}
+                </li>
+              ))}
+            </ul>
+          )}
+        </CardContent>
+      </Card>
 
       <AbsenClient infoAwal={info} />
 
-      <section aria-label="Absen hari ini" style={{ marginTop: 12 }}>
-        <h2 style={{ fontSize: 16 }}>Absen hari ini</h2>
+      <Separator />
+
+      <section aria-label="Absen hari ini" className="flex flex-col gap-2">
+        <h2 className="text-base font-medium">Absen hari ini</h2>
         <DaftarRiwayat riwayat={info.riwayat} />
       </section>
     </main>
   );
 }
 
-/**
- * Latar panel memakai token CSS, bukan warna literal.
- *
- * BUG-UI-07: warna literal seperti `#fff` dan `#ddd` tidak pernah berubah saat
- * mode gelap aktif, jadi panel tetap putih di atas latar gelap — teks putih di
- * atas putih, hampir tidak terbaca. `var(--card)` dan `var(--border)` punya
- * nilai berbeda di `:root` dan `.dark` (src/app/globals.css), jadi panel ikut
- * gelap tanpa logika tambahan.
- */
-const gayaKartu: CSSProperties = {
-  background: 'var(--card)',
-  color: 'var(--card-foreground)',
-  border: '1px solid var(--border)',
-  borderRadius: 8,
-  padding: 12,
-};
-
-/** Warna badge status: dua mode, jadi dua set token. */
-function gayaBadge(status: string): CSSProperties {
-  const dasar = { padding: '2px 8px', borderRadius: 4, fontSize: 14, border: '1px solid transparent' };
-  if (status === 'MENUNGGU') return { ...dasar, background: 'var(--badge-menunggu)', color: 'var(--badge-menunggu-teks)', borderColor: 'var(--badge-menunggu-teks)' };
-  if (status === 'DISETUJUI') return { ...dasar, background: 'var(--badge-setuju)', color: 'var(--badge-setuju-teks)', borderColor: 'var(--badge-setuju-teks)' };
-  return { ...dasar, background: 'var(--badge-ditolak)', color: 'var(--badge-ditolak-teks)', borderColor: 'var(--badge-ditolak-teks)' };
+/** Variant Badge per status. Teksnya selalu ikut — warna tidak pernah jadi satu-satunya pembawa arti. */
+function variantStatus(status: string): 'default' | 'secondary' | 'destructive' {
+  if (status === 'MENUNGGU') return 'secondary';
+  if (status === 'DITOLAK') return 'destructive';
+  return 'default';
 }
 
 export function DaftarRiwayat({ riwayat }: { riwayat: { jenis: string; waktu: string; status: string; alasan_tolak: string | null }[] }) {
-  if (riwayat.length === 0) return <p>Belum ada absen hari ini.</p>;
+  if (riwayat.length === 0) return <p className="text-sm text-muted-foreground">Belum ada absen hari ini.</p>;
   const labelStatus = (s: string) => (s === 'MENUNGGU' ? 'Menunggu' : s === 'DISETUJUI' ? 'Disetujui' : 'Ditolak');
   return (
-    <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
+    <ul className="flex flex-col gap-2">
       {riwayat.map((r, i) => (
-        <li key={i} style={{ ...gayaKartu, padding: 10 }}>
-          <span>{r.jenis === 'CHECKIN' ? 'Check-in' : 'Check-out'} · {r.waktu} WIB</span>{' '}
-          <span style={gayaBadge(r.status)}>{labelStatus(r.status)}</span>
-          {r.status === 'DITOLAK' && r.alasan_tolak ? <p style={{ margin: '4px 0 0' }}>Ditolak: {r.alasan_tolak}</p> : null}
-        </li>
+        <Card key={i}>
+          <CardContent className="flex flex-wrap items-center gap-2 py-3">
+            <span className="text-sm">
+              {r.jenis === 'CHECKIN' ? 'Check-in' : 'Check-out'} · {r.waktu} WIB
+            </span>
+            <Badge variant={variantStatus(r.status)}>{labelStatus(r.status)}</Badge>
+            {r.status === 'DITOLAK' && r.alasan_tolak ? (
+              <p className="w-full text-xs text-muted-foreground">Ditolak: {r.alasan_tolak}</p>
+            ) : null}
+          </CardContent>
+        </Card>
       ))}
     </ul>
   );
