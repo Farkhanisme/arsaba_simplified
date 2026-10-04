@@ -369,3 +369,34 @@ describe('BUG-UI-09 — "Absen hari ini" langsung muncul tanpa reload manual', (
     expect(kode, 'kirim sukses memanggil muatUlang').toMatch(/toast\.success\(badan\.pesan as string\);\s+await muatUlang\(\);/);
   });
 });
+
+describe('Animasi halus halaman absen — hormati motion-reduce', () => {
+  it('bagian utama memakai animate-in + fade-in + motion-reduce', () => {
+    // Kelas animasi yang dipakai HARUS terbukti ada di tw-animate-css
+    // (slide-in-from-bottom-2 misalnya TIDAK ada — hanya slide-in-from-bottom).
+    const kode = kodeTanpaKomentar('src/app/a/[token]/page.tsx');
+    expect(kode, '<main> punya animasi masuk').toMatch(/<main[^>]*className="[^"]*animate-in fade-in duration-300 motion-reduce:animate-none"/);
+    expect(kode, 'kartu riwayat punya animasi masuk').toMatch(/<Card key=\{i\} className="animate-in fade-in slide-in-from-bottom duration-300 motion-reduce:animate-none"/);
+  });
+
+  it('kartu kamera dan foto hasil punya animasi masuk', () => {
+    const kode = kodeTanpaKomentar('src/app/a/[token]/AbsenClient.tsx');
+    expect(kode, 'kartu ambil absen beranimasi').toMatch(/<Card aria-label="Ambil absen" className="[^"]*animate-in/);
+    expect(kode, 'foto hasil beranimasi').toMatch(/alt="Hasil foto absen" className="[^"]*animate-in fade-in/);
+  });
+
+  it('setiap animate-in dipasangkan motion-reduce:animate-none', () => {
+    // Tanpa pasangan ini, pengguna "kurangi gerakan" tetap kena animasi.
+    for (const f of BERKAS) {
+      const kode = kodeTanpaKomentar(f);
+      const denganAnimasi = (kode.match(/className="[^"]*animate-in[^"]*"/g) ?? []).length;
+      const denganReduce = (kode.match(/className="[^"]*motion-reduce:animate-none[^"]*"/g) ?? []).length;
+      expect(denganReduce, `motion-reduce di ${f}`).toBe(denganAnimasi);
+      expect(denganAnimasi, `ada animasi di ${f}`).toBeGreaterThan(0);
+    }
+  });
+
+  it('render nyata memuat kelas animasi', () => {
+    expect(htmlRiwayat(), 'kartu riwayat beranimasi di HTML').toContain('animate-in');
+  });
+});

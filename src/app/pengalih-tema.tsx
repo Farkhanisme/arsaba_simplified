@@ -1,13 +1,18 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { MoonIcon, SunIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 const KUNCI = 'arsaba-tema';
 
+/**
+ * Teks saja, tanpa emoji. Ikon dirender terpisah di tombol supaya tidak
+ * bergantung pada font emoji HP (tampil beda di tiap perangkat).
+ */
 export function labelTema(siap: boolean, gelap: boolean): string {
   if (!siap) return 'Tema';
-  return gelap ? '☀️ Terang' : '🌙 Gelap';
+  return gelap ? 'Terang' : 'Gelap';
 }
 
 /**
@@ -44,6 +49,7 @@ export default function PengalihTema() {
       aria-pressed={gelap}
       className="w-full justify-start"
     >
+      {siap ? (gelap ? <SunIcon /> : <MoonIcon />) : null}
       {labelTema(siap, gelap)}
     </Button>
   );

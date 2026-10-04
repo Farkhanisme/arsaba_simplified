@@ -234,7 +234,7 @@ export default function AbsenClient({ infoAwal }: { infoAwal: InfoAbsen }) {
     return (
       <>
         <Toaster position="top-center" />
-        <Card aria-label="Status absen">
+        <Card aria-label="Status absen" className="animate-in fade-in slide-in-from-bottom duration-300 motion-reduce:animate-none">
           <CardContent className="flex flex-col gap-3 py-4">
             <p className="text-sm">{info.alasan}</p>
             <Button className={KELAS_SENTUH} onClick={muatUlang}>
@@ -249,7 +249,7 @@ export default function AbsenClient({ infoAwal }: { infoAwal: InfoAbsen }) {
   return (
     <>
       <Toaster position="top-center" />
-      <Card aria-label="Ambil absen">
+      <Card aria-label="Ambil absen" className="animate-in fade-in slide-in-from-bottom duration-300 motion-reduce:animate-none">
         <CardContent className="flex flex-col gap-3 py-4">
           {galatKamera ? (
             <Alert variant="destructive">
@@ -333,7 +333,7 @@ export function IsiModalFoto({
 }) {
   return (
     <>
-      <img src={src} alt="Hasil foto absen" className="w-full rounded-lg" />
+      <img src={src} alt="Hasil foto absen" className="w-full rounded-lg animate-in fade-in duration-300 motion-reduce:animate-none" />
       <div className="flex gap-2">
         <Button variant="outline" className={`flex-1 ${KELAS_SENTUH}`} onClick={onFotoUlang} disabled={mengirim}>
           <RotateCcwIcon />Foto Ulang

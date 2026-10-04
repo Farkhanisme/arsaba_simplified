@@ -24,7 +24,7 @@ export default async function HalamanAbsen({ params }: { params: Promise<{ token
   if (!info) notFound();
 
   return (
-    <main className="mx-auto flex w-full max-w-[480px] flex-col gap-4 p-4">
+    <main className="mx-auto flex w-full max-w-[480px] flex-col gap-4 p-4 animate-in fade-in duration-300 motion-reduce:animate-none">
       <header>
         <h1 className="text-xl font-semibold tracking-tight">{info.nama}</h1>
         <p className="text-sm text-muted-foreground">{info.toko}</p>
@@ -81,7 +81,7 @@ export function DaftarRiwayat({ riwayat }: { riwayat: { jenis: string; waktu: st
   return (
     <ul className="flex flex-col gap-2">
       {riwayat.map((r, i) => (
-        <Card key={i}>
+        <Card key={i} className="animate-in fade-in slide-in-from-bottom duration-300 motion-reduce:animate-none">
           <CardContent className="flex flex-wrap items-center gap-2 py-3">
             <span className="text-sm">
               {r.jenis === 'CHECKIN' ? 'Check-in' : 'Check-out'} · {r.waktu} WIB
