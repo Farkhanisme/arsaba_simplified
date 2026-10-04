@@ -8,6 +8,12 @@
  * Kompresi JPEG otomatis (src/lib/kompres.ts). Lokasi apa pun tidak
  * menghalangi kirim.
  *
+ * Ganti kamera memakai TANGGA fallback (BUG-UI-10): deviceId eksak dari
+ * enumerateDevices -> facingMode exact -> facingMode polos. String facingMode
+ * polos ditolak sebagian browser (Opera Android) tanpa pesan yang jelas, jadi
+ * OverconstrainedError dipetakan ke pesan jujur dan tombolnya disembunyikan
+ * bila HP cuma punya satu kamera.
+ *
  * Perilaku modal (keputusan pemilik):
  *   - Modal terbuka saat foto diambil, menutupi pratinjau. Tombol di
  *     belakangnya mati (Dialog modal + disabled).
@@ -49,6 +55,32 @@ type StatusLokasi = { keadaan: 'TERSEDIA'; lat: number; lng: number } | { keadaa
 /** rules/05: target sentuh minimum 44x44 px. 48px memberi ruang aman. */
 const KELAS_SENTUH = 'h-12 text-base';
 
+/** Bentuk minimal perangkat untuk memilih kamera — MediaDeviceInfo cocok langsung. */
+export interface PerangkatKamera {
+  kind: string;
+  label: string;
+  deviceId: string;
+}
+
+/**
+ * Memilih kamera belakang dari daftar perangkat.
+ *
+ * Fungsi murni agar bisa diuji tanpa browser: diberi daftar label, harus
+ * mengembalikan deviceId yang tepat atau null.
+ *
+ * Kenapa perlu: `facingMode: 'environment'` dalam bentuk string polos artinya
+ * "kalau bisa" — browser boleh mengabaikannya (tetap kamera depan) atau
+ * malah melempar error seperti di Opera Android (BUG-UI-10). Meminta lewat
+ * `deviceId: { exact }` adalah permintaan eksak ke perangkat yang nyata ada.
+ */
+export function pilihKameraBelakang(daftar: PerangkatKamera[]): string | null {
+  const video = daftar.filter((d) => d.kind === 'videoinput' && d.deviceId);
+  const belakang = video.find(
+    (d) => /back|rear|belakang|trasera|arri[eè]re/i.test(d.label) && !/front/i.test(d.label),
+  );
+  return belakang?.deviceId ?? null;
+}
+
 export default function AbsenClient({ infoAwal }: { infoAwal: InfoAbsen }) {
   // Token dibaca dari URL di browser (pemilik link sudah memilikinya lewat
   // URL) — tidak dikirim lewat props agar tak terserialisasi ke HTML.
@@ -64,19 +96,72 @@ export default function AbsenClient({ infoAwal }: { infoAwal: InfoAbsen }) {
   const [requestId, setRequestId] = useState<string | null>(null);
   const [lokasi, setLokasi] = useState<StatusLokasi>({ keadaan: 'BELUM' });
   const [mengirim, setMengirim] = useState(false);
+  // null = belum tahu (tampilkan tombol seperti dulu); false = satu kamera.
+  const [bisaGanti, setBisaGanti] = useState<boolean | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
+  // Cerminan stream untuk dibaca di dalam mulaiKamera (callback tanpa deps).
+  const streamRef = useRef<MediaStream | null>(null);
 
   // Modal terbuka tepat saat ada foto yang menunggu keputusan.
   const modalTerbuka = foto !== null && pratinjau !== null;
 
+  /** Menyampaikan galat kamera: toast bila pratinjau masih hidup, panel bila tidak. */
+  function sampaikanGalat(pesan: string) {
+    if (streamRef.current) {
+      // Gagal GANTI kamera saat pratinjau depan masih tampil: jangan ganti
+      // video dengan teks error — cukup toast, kamera depan tetap jalan.
+      toast.error(pesan);
+    } else {
+      setGalatKamera(pesan);
+    }
+  }
+
+  /**
+   * Membuka stream untuk mode yang diminta.
+   *
+   * Kamera depan ('user') langsung diminta seperti dulu — itu yang terbukti
+   * jalan. Kamera belakang ('environment') menuruni TANGGA fallback, dari yang
+   * paling eksak ke yang paling longgar:
+   *   1. deviceId eksak dari enumerateDevices (perangkat yang nyata ada),
+   *   2. facingMode { exact: 'environment' },
+   *   3. facingMode 'environment' polos (perilaku lama, baris terakhir).
+   *
+   * Melempar DOMException asal bila semuanya gagal; pemanggil memetakannya ke
+   * pesan yang jujur (bukan "Coba lagi" untuk semua jenis gagal).
+   */
+  async function bukaStream(mode: 'user' | 'environment'): Promise<MediaStream> {
+    const media = navigator.mediaDevices;
+    if (!media?.getUserMedia) {
+      throw new DOMException('Kamera tidak ada', 'NotFoundError');
+    }
+    if (mode === 'user') {
+      return media.getUserMedia({ video: { facingMode: 'user' }, audio: false });
+    }
+    try {
+      const daftar = await media.enumerateDevices();
+      const id = pilihKameraBelakang(
+        daftar.map((d) => ({ kind: d.kind, label: d.label, deviceId: d.deviceId })),
+      );
+      if (id) {
+        return await media.getUserMedia({ video: { deviceId: { exact: id } }, audio: false });
+      }
+    } catch {
+      // Lanjut ke tingkat berikutnya — enumerateDevices bisa gagal di
+      // browser yang membatasi akses daftar perangkat.
+    }
+    try {
+      return await media.getUserMedia({ video: { facingMode: { exact: 'environment' } }, audio: false });
+    } catch {
+      // Baris terakhir: perilaku lama. Bisa tetap tidak menghormati di
+      // sebagian browser, tapi tidak melempar OverconstrainedError.
+      return await media.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
+    }
+  }
+
   const mulaiKamera = useCallback(async (mode: 'user' | 'environment') => {
     setGalatKamera(null);
     try {
-      if (!navigator.mediaDevices?.getUserMedia) {
-        setGalatKamera('Kamera tidak ditemukan di perangkat ini.');
-        return;
-      }
-      const s = await navigator.mediaDevices.getUserMedia({ video: { facingMode: mode }, audio: false });
+      const s = await bukaStream(mode);
       setStream((lama) => {
         lama?.getTracks().forEach((t) => t.stop());
         return s;
@@ -84,11 +169,20 @@ export default function AbsenClient({ infoAwal }: { infoAwal: InfoAbsen }) {
       setKamera(mode);
     } catch (e) {
       if (e instanceof DOMException && (e.name === 'NotAllowedError' || e.name === 'SecurityError')) {
-        setGalatKamera('Izin kamera diperlukan untuk absen. Aktifkan izin kamera di pengaturan browser, lalu coba lagi.');
+        sampaikanGalat('Izin kamera diperlukan untuk absen. Aktifkan izin kamera di pengaturan browser, lalu coba lagi.');
       } else if (e instanceof DOMException && e.name === 'NotFoundError') {
-        setGalatKamera('Kamera tidak ditemukan di perangkat ini.');
+        sampaikanGalat('Kamera tidak ditemukan di perangkat ini.');
+      } else if (e instanceof DOMException && e.name === 'OverconstrainedError') {
+        // BUG-UI-10: ini yang terjadi di Opera Android — permintaan kamera
+        // belakang DITOLAK, bukan diabaikan. Pesan harus menyebut itu supaya
+        // laporan berikutnya langsung jelas jenisnya.
+        sampaikanGalat(
+          mode === 'environment'
+            ? 'Kamera belakang tidak dapat dibuka di perangkat ini. Tetap memakai kamera depan untuk absen.'
+            : 'Kamera tidak dapat dibuka. Coba lagi.',
+        );
       } else {
-        setGalatKamera('Kamera tidak dapat dibuka. Coba lagi.');
+        sampaikanGalat('Kamera tidak dapat dibuka. Coba lagi.');
       }
     }
   }, []);
@@ -116,6 +210,32 @@ export default function AbsenClient({ infoAwal }: { infoAwal: InfoAbsen }) {
   useEffect(() => {
     if (videoRef.current && stream) videoRef.current.srcObject = stream;
   }, [stream]);
+
+  // Cerminan stream untuk sampaikanGalat (callback tanpa deps tidak bisa
+  // membaca state langsung).
+  useEffect(() => {
+    streamRef.current = stream;
+  }, [stream]);
+
+  // Sekali saja setelah stream pertama hidup: hitung kamera yang benar-benar
+  // ada. Kalau cuma satu, tombol Ganti Kamera disembunyikan — bukan dibiarkan
+  // sebagai tombol yang selalu gagal. Gagal menghitung = tampilkan tombol
+  // seperti dulu (jangan mengunci fitur karena telemetri gagal).
+  useEffect(() => {
+    if (!stream || bisaGanti !== null) return;
+    let batal = false;
+    navigator.mediaDevices
+      ?.enumerateDevices()
+      .then((daftar) => {
+        if (!batal) setBisaGanti(daftar.filter((d) => d.kind === 'videoinput').length > 1);
+      })
+      .catch(() => {
+        if (!batal) setBisaGanti(true);
+      });
+    return () => {
+      batal = true;
+    };
+  }, [stream, bisaGanti]);
 
   useEffect(() => {
     return () => {
@@ -277,14 +397,16 @@ export default function AbsenClient({ infoAwal }: { infoAwal: InfoAbsen }) {
             <Button className={`flex-1 ${KELAS_SENTUH}`} onClick={ambilFoto} disabled={mengirim || !stream || modalTerbuka}>
               <CameraIcon />Foto
             </Button>
-            <Button
-              variant="outline"
-              className={`flex-1 ${KELAS_SENTUH}`}
-              onClick={() => mulaiKamera(kamera === 'user' ? 'environment' : 'user')}
-              disabled={mengirim || modalTerbuka}
-            >
-              <SwitchCameraIcon />Ganti Kamera
-            </Button>
+            {bisaGanti !== false ? (
+              <Button
+                variant="outline"
+                className={`flex-1 ${KELAS_SENTUH}`}
+                onClick={() => mulaiKamera(kamera === 'user' ? 'environment' : 'user')}
+                disabled={mengirim || modalTerbuka}
+              >
+                <SwitchCameraIcon />Ganti Kamera
+              </Button>
+            ) : null}
           </div>
 
           {info.aksi === 'CHECKOUT' ? (

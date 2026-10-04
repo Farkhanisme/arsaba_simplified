@@ -24,7 +24,7 @@ import { readFileSync } from 'fs';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { DaftarRiwayat } from '../src/app/a/[token]/page';
-import { IsiModalFoto } from '../src/app/a/[token]/AbsenClient';
+import { IsiModalFoto, pilihKameraBelakang } from '../src/app/a/[token]/AbsenClient';
 
 const CONTOH_RIWAYAT = [
   { jenis: 'CHECKIN', waktu: '2026-10-03T07:05:00+07:00', status: 'DISETUJUI', alasan_tolak: null },
@@ -398,5 +398,85 @@ describe('Animasi halus halaman absen — hormati motion-reduce', () => {
 
   it('render nyata memuat kelas animasi', () => {
     expect(htmlRiwayat(), 'kartu riwayat beranimasi di HTML').toContain('animate-in');
+  });
+});
+
+describe('BUG-UI-10 — kamera belakang dibuka lewat deviceId, bukan facingMode polos', () => {
+  const depan = { kind: 'videoinput', label: 'Camera front', deviceId: 'depan-1' };
+  const belakang = { kind: 'videoinput', label: 'camera2 0, facing back', deviceId: 'belakang-0' };
+
+  it('memilih kamera berlabel belakang', () => {
+    expect(pilihKameraBelakang([depan, belakang])).toBe('belakang-0');
+    expect(pilihKameraBelakang([belakang, depan])).toBe('belakang-0');
+  });
+
+  it('mengenali label Indonesia dan kapitalisasi acak', () => {
+    expect(pilihKameraBelakang([{ kind: 'videoinput', label: 'Kamera Belakang', deviceId: 'b' }])).toBe('b');
+    expect(pilihKameraBelakang([{ kind: 'videoinput', label: 'BACK CAMERA', deviceId: 'b' }])).toBe('b');
+    expect(pilihKameraBelakang([{ kind: 'videoinput', label: 'rear camera', deviceId: 'b' }])).toBe('b');
+  });
+
+  it('mengembalikan null bila tidak ada kamera belakang', () => {
+    expect(pilihKameraBelakang([])).toBeNull();
+    expect(pilihKameraBelakang([depan])).toBeNull();
+    // Bukan video (mikrofon) dan tanpa deviceId diabaikan.
+    expect(
+      pilihKameraBelakang([
+        { kind: 'audioinput', label: 'back mic', deviceId: 'm' },
+        { kind: 'videoinput', label: 'back camera', deviceId: '' },
+      ]),
+    ).toBeNull();
+  });
+
+  it('label depan tidak dikira belakang walau mengandung kata mirip', () => {
+    expect(
+      pilihKameraBelakang([{ kind: 'videoinput', label: 'Front camera', deviceId: 'f' }]),
+    ).toBeNull();
+  });
+
+  it('tangga fallback berurutan: deviceId eksak -> facingMode exact -> facingMode polos', () => {
+    // Urutan ini intinya perbaikan: yang paling eksak dicoba dulu, perilaku
+    // lama (string polos) jadi baris terakhir, bukan satu-satunya cara.
+    const kode = kodeTanpaKomentar('src/app/a/[token]/AbsenClient.tsx');
+    const posDevice = kode.indexOf('deviceId: { exact: id }');
+    const posExact = kode.indexOf("facingMode: { exact: 'environment' }");
+    const posPolos = kode.indexOf("facingMode: 'environment'");
+    expect(posDevice, 'deviceId eksak ada').toBeGreaterThan(-1);
+    expect(posExact, 'facingMode exact ada').toBeGreaterThan(-1);
+    expect(posPolos, 'facingMode polos ada sebagai terakhir').toBeGreaterThan(-1);
+    expect(posDevice, 'deviceId dicoba dulu').toBeLessThan(posExact);
+    expect(posExact, 'exact sebelum polos').toBeLessThan(posPolos);
+  });
+
+  it('daftar perangkat dibaca SEBELUM meminta deviceId', () => {
+    const kode = kodeTanpaKomentar('src/app/a/[token]/AbsenClient.tsx');
+    expect(kode, 'enumerateDevices dipakai').toMatch(/await media\.enumerateDevices\(\)/);
+    expect(kode, 'hasilnya dipetakan ke pilihKameraBelakang').toMatch(/pilihKameraBelakang\(/);
+  });
+
+  it('OverconstrainedError punya pesan jujur, bukan "Coba lagi" generik', () => {
+    // Ini error yang dialami pemilik di Opera Android: permintaan kamera
+    // belakang DITOLAK. Pesan harus menyebut itu supaya laporan berikutnya
+    // langsung jelas jenisnya.
+    const kode = kodeTanpaKomentar('src/app/a/[token]/AbsenClient.tsx');
+    expect(kode, 'cabang OverconstrainedError ada').toMatch(/e\.name === 'OverconstrainedError'/);
+    expect(kode, 'pesan menyebut kamera belakang').toMatch(/Kamera belakang tidak dapat dibuka di perangkat ini/);
+  });
+
+  it('gagal ganti kamera tidak mematikan pratinjau depan yang hidup', () => {
+    // Stream lama hanya diganti saat getUserMedia sukses (di dalam setStream).
+    // Kegagalan menyampaikan lewat toast, bukan setGalatKamera yang akan
+    // mengganti <video> dengan teks error.
+    const kode = kodeTanpaKomentar('src/app/a/[token]/AbsenClient.tsx');
+    expect(kode, 'ada jalur toast saat stream hidup').toMatch(/if \(streamRef\.current\) \{\s+toast\.error\(pesan\);/);
+    expect(kode, 'streamRef dicerminkan dari state').toMatch(/streamRef\.current = stream;/);
+  });
+
+  it('tombol Ganti Kamera disembunyikan bila HP cuma punya satu kamera', () => {
+    const kode = kodeTanpaKomentar('src/app/a/[token]/AbsenClient.tsx');
+    expect(kode, 'menghitung videoinput').toMatch(/d\.kind === 'videoinput'/);
+    expect(kode, 'sembunyikan bila tidak bisa ganti').toMatch(/\{bisaGanti !== false \?/);
+    // Nilai awal null = tampilkan seperti dulu; hanya false yang menyembunyikan.
+    expect(kode, 'nilai awal null, bukan false').toMatch(/useState<boolean \| null>\(null\)/);
   });
 });
