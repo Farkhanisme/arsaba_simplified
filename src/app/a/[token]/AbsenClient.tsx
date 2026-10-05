@@ -160,12 +160,14 @@ export default function AbsenClient({ infoAwal }: { infoAwal: InfoAbsen }) {
 
   const mulaiKamera = useCallback(async (mode: 'user' | 'environment') => {
     setGalatKamera(null);
+    // Race condition fix: hentikan stream lama SEBELUM minta stream baru
+    setStream((lama) => {
+      lama?.getTracks().forEach((t) => t.stop());
+      return null;
+    });
     try {
       const s = await bukaStream(mode);
-      setStream((lama) => {
-        lama?.getTracks().forEach((t) => t.stop());
-        return s;
-      });
+      setStream(s);
       setKamera(mode);
     } catch (e) {
       if (e instanceof DOMException && (e.name === 'NotAllowedError' || e.name === 'SecurityError')) {
@@ -181,7 +183,14 @@ export default function AbsenClient({ infoAwal }: { infoAwal: InfoAbsen }) {
             ? 'Kamera belakang tidak dapat dibuka di perangkat ini. Tetap memakai kamera depan untuk absen.'
             : 'Kamera tidak dapat dibuka. Coba lagi.',
         );
+      } else if (e instanceof DOMException && e.name === 'NotReadableError') {
+        // Kamera ada tapi tidak bisa dibaca (sedang dipakai app lain, atau hardware busy)
+        sampaikanGalat('Kamera sedang dipakai aplikasi lain. Tutup aplikasi kamera lain lalu coba lagi.');
       } else {
+        // Log error asli ke konsol untuk debug (hanya development)
+        if (process.env.NODE_ENV === 'development') {
+          console.error('[AbsenClient] Kamera error:', e);
+        }
         sampaikanGalat('Kamera tidak dapat dibuka. Coba lagi.');
       }
     }
