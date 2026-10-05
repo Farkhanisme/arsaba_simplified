@@ -180,10 +180,9 @@ export default function AbsenClient({ infoAwal }: { infoAwal: InfoAbsen }) {
   const mulaiKamera = useCallback(async (mode: 'user' | 'environment') => {
     setGalatKamera(null);
     // Race condition fix: hentikan stream lama & TUNGGU hardware terlepas SEBELUM minta stream baru
-    await setStream(async (lama) => {
-      await hentikanStream(lama);
-      return null;
-    });
+    // Pakai streamRef.current (bukan state) karena closure callback tidak punya state terbaru
+    await hentikanStream(streamRef.current);
+    setStream(null);
     try {
       const s = await bukaStream(mode);
       setStream(s);
