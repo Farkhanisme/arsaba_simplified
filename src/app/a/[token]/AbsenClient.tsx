@@ -158,11 +158,30 @@ export default function AbsenClient({ infoAwal }: { infoAwal: InfoAbsen }) {
     }
   }
 
+  /** Hentikan stream & tunggu track benar-benar ended (hindari NotReadableError saat ganti cepat). */
+  const hentikanStream = useCallback((stream: MediaStream | null): Promise<void> => {
+    if (!stream) return Promise.resolve();
+    const tracks = stream.getTracks();
+    if (tracks.length === 0) return Promise.resolve();
+    tracks.forEach((t) => t.stop());
+    return Promise.all(
+      tracks.map(
+        (t) =>
+          new Promise<void>((resolve) => {
+            if (t.readyState === 'ended') return resolve();
+            t.addEventListener('ended', () => resolve(), { once: true });
+            // Fallback timeout: beberapa browser tidak fire 'ended' reliable
+            setTimeout(resolve, 200);
+          }),
+      ),
+    ).then(() => {});
+  }, []);
+
   const mulaiKamera = useCallback(async (mode: 'user' | 'environment') => {
     setGalatKamera(null);
-    // Race condition fix: hentikan stream lama SEBELUM minta stream baru
-    setStream((lama) => {
-      lama?.getTracks().forEach((t) => t.stop());
+    // Race condition fix: hentikan stream lama & TUNGGU hardware terlepas SEBELUM minta stream baru
+    await setStream(async (lama) => {
+      await hentikanStream(lama);
       return null;
     });
     try {
