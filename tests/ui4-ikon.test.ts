@@ -85,6 +85,53 @@ describe('menu sidebar punya ikon Lucide per label', () => {
     expect(html, 'tidak ada svg untuk label tak dikenal').not.toContain('<svg');
   });
 
+  /**
+   * Pagar yang hilang di M11–M14: tes di atas hanya menguji `Dashboard` dan
+   * `Jadwal`, jadi menu `Agenda` dan `Verifikasi Agenda` bisa ditambah tanpa
+   * ikon dan semua tes tetap hijau. Gejalanya nyata: kedua menu itu tampil polos
+   * di sidebar.
+   *
+   * Tes ini menutupnya tanpa menyalin daftar label ke sini — sumbernya
+   * `menuUntukPeran()`, jadi menu berikutnya yang lupa ikon akan gagal sendiri.
+   */
+  it('SETIAP menu di sidebar punya ikon (dari menu.ts, bukan daftar di tes)', async () => {
+    const { menuUntukPeran } = await import('../src/app/admin/menu');
+    const { IKON_MENU } = await import('../src/app/admin/tautan-menu');
+
+    const labelTanpaIkon: string[] = [];
+    for (const peran of ['ADMIN', 'SUPER_ADMIN'] as const) {
+      for (const kelompok of menuUntukPeran(peran)) {
+        for (const item of kelompok.item) {
+          // Item tanpa href = tombol nonavigasi (mis. Keluar), bukan tautan menu.
+          if (!item.href) continue;
+          if (!IKON_MENU[item.label]) labelTanpaIkon.push(`${peran}/${item.label}`);
+        }
+      }
+    }
+    expect(labelTanpaIkon, 'menu sidebar tanpa ikon').toEqual([]);
+  });
+
+  it('menu Agenda dan Verifikasi Agenda benar-benar merender ikon', () => {
+    // Tes sebelumnya hanya membuktikan labelnya ADA di peta ikon. Yang ini
+    // membuktikannya benar-benar dirender jadi <svg> saat komponen dijalankan.
+    for (const [href, label] of [
+      ['/admin/agenda', 'Agenda'],
+      ['/admin/verifikasi-agenda', 'Verifikasi Agenda'],
+    ] as const) {
+      const html = htmlMenu(href, label);
+      expect(html, `${label} label`).toContain(label);
+      expect((html.match(/<svg/g) ?? []).length, `ikon ${label}`).toBe(1);
+    }
+  });
+
+  it('Agenda ≠ Jadwal dan Verifikasi Agenda ≠ Verifikasi Absensi (bentuk ikon)', async () => {
+    // Dua ikon yang sama untuk dua menu berdekatan membuat keduanya tertukar
+    // saat dibaca sekilas di sidebar sempit.
+    const { IKON_MENU } = await import('../src/app/admin/tautan-menu');
+    expect(IKON_MENU['Jadwal']).not.toBe(IKON_MENU['Agenda']);
+    expect(IKON_MENU['Verifikasi Absensi']).not.toBe(IKON_MENU['Verifikasi Agenda']);
+  });
+
   it('tombol Keluar memakai ikon LogOut', () => {
     const html = render(h(TombolKeluar));
     expect(html).toContain('Keluar');

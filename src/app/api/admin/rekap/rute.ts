@@ -41,6 +41,26 @@ function namaFile(filter: FilterRekap): string {
 }
 
 /**
+ * Pesan blokir menyebut seluruh penyebab, bukan hanya yang pertama.
+ *
+ * Dulu (sebelum K-63) pesan menyebut dua penyebab. Kalau hanya satu yang
+ * disebutkan, admin akan memperbaiki yang salah lalu ditolak lagi untuk
+ * penyebab yang sama — dua putaran bolak-balik tanpa perubahan apa pun.
+ * Bagian agenda yang nol sengaja TIDAK disebut: tidak ada yang perlu diperbaiki.
+ */
+function pesanBlokir(p: {
+  jumlahMenunggu: number;
+  jumlahCheckinTerbuka: number;
+  jumlahAgendaMenunggu: number;
+}): string {
+  const bagian: string[] = [];
+  if (p.jumlahMenunggu > 0) bagian.push(`${p.jumlahMenunggu} absensi menunggu verifikasi`);
+  if (p.jumlahCheckinTerbuka > 0) bagian.push(`${p.jumlahCheckinTerbuka} check-in tanpa check-out`);
+  if (p.jumlahAgendaMenunggu > 0) bagian.push(`${p.jumlahAgendaMenunggu} laporan agenda menunggu verifikasi`);
+  return `Ekspor belum bisa dilakukan: masih ada ${bagian.join(', ')}.`;
+}
+
+/**
  * POST /api/admin/rekap/periksa — hasil pemeriksaan syarat ekspor (BR-R2/R3).
  */
 export const PERIKSA = guard('rekap', async (req: NextRequest) => {
@@ -96,15 +116,12 @@ export const EKSPOR = guard('ekspor', async (req: NextRequest, ctx) => {
     const data = await denganTransaksi(async (tx) => {
       const susun = await susunRekap(f.filter, tx);
       if (!susun.pemeriksaan.boleh) {
-        throw new GalatAturan(
-          409,
-          `Ekspor belum bisa dilakukan: masih ada ${susun.pemeriksaan.jumlahMenunggu} absensi menunggu verifikasi dan ${susun.pemeriksaan.jumlahCheckinTerbuka} check-in tanpa check-out.`,
-        );
+        throw new GalatAturan(409, pesanBlokir(susun.pemeriksaan));
       }
       await catatEkspor(f.filter, ctx.pengguna_id, tx);
-      return { ringkasan: susun.ringkasan, detail: susun.detail };
+      return { ringkasan: susun.ringkasan, detail: susun.detail, detailAgenda: susun.detailAgenda };
     });
-    const xlsx = await buatWorkbook(data.ringkasan, data.detail);
+    const xlsx = await buatWorkbook(data.ringkasan, data.detail, data.detailAgenda);
     return new NextResponse(new Uint8Array(xlsx), {
       status: 200,
       headers: {

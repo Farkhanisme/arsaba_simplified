@@ -46,6 +46,14 @@ import { GET as jadwalRoute, POST as jadwalBuatRoute } from '../src/app/api/admi
 import { GET as jadwalPilihanRoute } from '../src/app/api/admin/jadwal/pilihan/route';
 import { POST as jadwalMassalRoute } from '../src/app/api/admin/jadwal/massal/route';
 import { POST as jadwalOverrideRoute } from '../src/app/api/admin/jadwal/override/route';
+import { GET as agendaRoute, POST as agendaBuatRoute } from '../src/app/api/admin/agenda/route';
+import { PUT as agendaIdRoute } from '../src/app/api/admin/agenda/[id]/route';
+import { GET as verifikasiAgendaRoute } from '../src/app/api/admin/verifikasi-agenda/route';
+import { PUT as verifikasiAgendaIdRoute } from '../src/app/api/admin/verifikasi-agenda/[id]/route';
+import { GET as fotoAgendaRoute } from '../src/app/api/foto/agenda/[id]/route';
+import { GET as agendaInfoRoute } from '../src/app/api/agenda/info/route';
+import { POST as agendaLaporanRoute } from '../src/app/api/agenda/laporan/route';
+import { POST as agendaBuatPribadiRoute } from '../src/app/api/agenda/buat/route';
 
 const APP_ORIGIN = process.env['APP_ORIGIN'] as string;
 
@@ -116,7 +124,15 @@ const ROUTE_GUARD: DaftarRoute[] = [
   { nama: 'POST /api/admin/jadwal/massal', metode: 'POST', url: '/api/admin/jadwal/massal', panggil: jadwalMassalRoute },
   { nama: 'POST /api/admin/jadwal/override', metode: 'POST', url: '/api/admin/jadwal/override', panggil: jadwalOverrideRoute },
 
+  { nama: 'GET  /api/admin/agenda', metode: 'GET', url: '/api/admin/agenda', panggil: agendaRoute },
+  { nama: 'POST /api/admin/agenda', metode: 'POST', url: '/api/admin/agenda', panggil: agendaBuatRoute },
+  { nama: 'PUT  /api/admin/agenda/1', metode: 'PUT', url: '/api/admin/agenda/1', panggil: agendaIdRoute },
+
+  { nama: 'GET  /api/admin/verifikasi-agenda', metode: 'GET', url: '/api/admin/verifikasi-agenda', panggil: verifikasiAgendaRoute },
+  { nama: 'PUT  /api/admin/verifikasi-agenda/1', metode: 'PUT', url: '/api/admin/verifikasi-agenda/1', panggil: verifikasiAgendaIdRoute },
+
   { nama: 'GET  /api/foto/1', metode: 'GET', url: '/api/foto/1', panggil: fotoRoute },
+  { nama: 'GET  /api/foto/agenda/1', metode: 'GET', url: '/api/foto/agenda/1', panggil: fotoAgendaRoute },
 ];
 
 /** Route publik: Origin tetap wajib, sesi tidak. */
@@ -124,6 +140,11 @@ const ROUTE_PUBLIK: DaftarRoute[] = [
   { nama: 'POST /api/logout', metode: 'POST', url: '/api/logout', panggil: logoutRoute },
   { nama: 'GET  /api/absen/info', metode: 'GET', url: '/api/absen/info', panggil: absenInfoRoute },
   { nama: 'POST /api/absen', metode: 'POST', url: '/api/absen', panggil: absenRoute },
+  // Agenda sisi karyawan: publik lewat token link yang sama dengan absen (K-01),
+  // jadi ikut daftar PUBLIK — bukan ROUTE_GUARD.
+  { nama: 'GET /api/agenda/info', metode: 'GET', url: '/api/agenda/info', panggil: agendaInfoRoute },
+  { nama: 'POST /api/agenda/laporan', metode: 'POST', url: '/api/agenda/laporan', panggil: agendaLaporanRoute },
+  { nama: 'POST /api/agenda/buat', metode: 'POST', url: '/api/agenda/buat', panggil: agendaBuatPribadiRoute },
 ];
 
 function buatRequest(r: DaftarRoute, origin: string | null): NextRequest {
@@ -160,7 +181,7 @@ describe('Origin diperiksa di SEMUA route, lewat perilaku', () => {
       belum.push(f);
     }
     expect(belum, 'route yang belum diuji Origin-nya').toEqual([]);
-    expect(files.length, 'route.ts yang ditemukan; login diuji terpisah').toBeGreaterThanOrEqual(27);
+    expect(files.length, 'route.ts yang ditemukan; login diuji terpisah').toBeGreaterThanOrEqual(37);
   });
 
   for (const r of ROUTE_GUARD) {

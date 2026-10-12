@@ -18,6 +18,8 @@ export interface DataDashboard {
   tanggalPanjang: string;
   kartu: KartuToko[];
   antrean: number;
+  /** BR-G17: laporan agenda MENUNGGU dari semua tanggal. */
+  antreanAgenda: number;
 }
 
 const configHadir: ChartConfig = {
@@ -36,17 +38,32 @@ export function PanelDashboard({ data }: { data: DataDashboard }) {
   return (
     <div className="flex flex-col gap-3">
       <h1 className="mt-0 text-2xl font-semibold tracking-tight">Dashboard — {data.tanggalPanjang}</h1>
-      <Card className="max-w-md">
-        <CardHeader>
-          <CardTitle className="text-sm font-normal text-muted-foreground">Antrean verifikasi</CardTitle>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-2">
-          <div className="text-3xl font-bold">{data.antrean}</div>
-          <Link href="/admin/verifikasi" className="text-sm underline underline-offset-4">
-            Buka Verifikasi
-          </Link>
-        </CardContent>
-      </Card>
+      <div className="grid gap-3 [grid-template-columns:repeat(auto-fill,minmax(220px,1fr))]">
+        <Card className="max-w-md">
+          <CardHeader>
+            <CardTitle className="text-sm font-normal text-muted-foreground">Antrean verifikasi absensi</CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-2">
+            <div className="text-3xl font-bold">{data.antrean}</div>
+            <Link href="/admin/verifikasi" className="text-sm underline underline-offset-4">
+              Buka Verifikasi
+            </Link>
+          </CardContent>
+        </Card>
+        {/* BR-G17: antrean agenda terpisah karena halamannya terpisah (BR-G10),
+            dan angka ini ikut menentukan apakah ekspor bisa dilakukan (K-63). */}
+        <Card className="max-w-md">
+          <CardHeader>
+            <CardTitle className="text-sm font-normal text-muted-foreground">Antrean verifikasi agenda</CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-2">
+            <div className="text-3xl font-bold">{data.antreanAgenda}</div>
+            <Link href="/admin/verifikasi-agenda" className="text-sm underline underline-offset-4">
+              Buka Verifikasi Agenda
+            </Link>
+          </CardContent>
+        </Card>
+      </div>
 
       <section aria-label="Grafik kehadiran per toko" className="mb-3">
         <h2 className="text-base font-medium">Terjadwal vs Sudah absen per toko</h2>
@@ -100,6 +117,15 @@ export function PanelDashboard({ data }: { data: DataDashboard }) {
                 <dt>Belum absen</dt>
                 <dd className="m-0">
                   <Badge variant="destructive">● {k.belum_absen}</Badge>
+                </dd>
+                {/* BR-G17: metrik agenda memakai tanggal submit laporan. */}
+                <dt>Agenda selesai</dt>
+                <dd className="m-0 font-bold">{k.agenda.selesai}</dd>
+                <dt>Agenda ditolak</dt>
+                <dd className="m-0 font-bold">{k.agenda.ditolak}</dd>
+                <dt>Agenda menunggu</dt>
+                <dd className="m-0">
+                  <Badge variant="outline">{k.agenda.menunggu}</Badge>
                 </dd>
               </dl>
             </CardContent>

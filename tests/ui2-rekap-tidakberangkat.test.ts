@@ -41,7 +41,7 @@ describe('tanggalPendek tidak berangkat', () => {
 describe('Rekap (§5.6: periksa + pratinjau + unduh)', () => {
   const dataLolos = {
     filter: { dari: '2026-10-01', sampai: '2026-10-03', tokoId: null as number | null },
-    pemeriksaan: { boleh: true, jumlahMenunggu: 0, jumlahCheckinTerbuka: 0, peringatan: 0 },
+    pemeriksaan: { boleh: true, jumlahMenunggu: 0, jumlahCheckinTerbuka: 0, jumlahAgendaMenunggu: 0, peringatan: 0 },
     ringkasan: [],
   };
 
@@ -64,10 +64,10 @@ describe('Rekap (§5.6: periksa + pratinjau + unduh)', () => {
     expect((html.match(/type="date"/g) ?? []).length).toBe(2);
   });
 
-  it('lolos hijau persis + tabel enam kolom + unduh aktif', () => {
+  it('lolos hijau persis + tabel delapan kolom + unduh aktif', () => {
     const html = render(h(PanelRekap, { data: dataLolos, mengunduh: false, onUnduh: tidakAda }));
-    expect(html).toContain('Semua absensi pada periode ini sudah diverifikasi.');
-    for (const kolom of ['Nama', 'Toko', 'Hari Hadir', 'Izin', 'Tanpa Keterangan', 'Total Menit Terlambat Final']) {
+    expect(html).toContain('Semua absensi dan agenda pada periode ini sudah diverifikasi.');
+    for (const kolom of ['Nama', 'Toko', 'Hari Hadir', 'Izin', 'Tanpa Keterangan', 'Total Menit Terlambat Final', 'Agenda Selesai', 'Agenda Ditolak']) {
       expect(html, kolom).toContain(kolom);
     }
     expect(html).toContain('Unduh Excel (.xlsx)');
@@ -80,7 +80,7 @@ describe('Rekap (§5.6: periksa + pratinjau + unduh)', () => {
       h(PanelRekap, {
         data: {
           filter: { dari: '2026-10-01', sampai: '2026-10-03', tokoId: 2 },
-          pemeriksaan: { boleh: false, jumlahMenunggu: 3, jumlahCheckinTerbuka: 2, peringatan: 0 },
+          pemeriksaan: { boleh: false, jumlahMenunggu: 3, jumlahCheckinTerbuka: 2, jumlahAgendaMenunggu: 0, peringatan: 0 },
           ringkasan: [],
         },
         mengunduh: false,
@@ -98,7 +98,7 @@ describe('Rekap (§5.6: periksa + pratinjau + unduh)', () => {
       h(PanelRekap, {
         data: {
           filter: { dari: '2026-10-01', sampai: '2026-10-03', tokoId: null },
-          pemeriksaan: { boleh: true, jumlahMenunggu: 0, jumlahCheckinTerbuka: 0, peringatan: 1 },
+          pemeriksaan: { boleh: true, jumlahMenunggu: 0, jumlahCheckinTerbuka: 0, jumlahAgendaMenunggu: 0, peringatan: 1 },
           ringkasan: [],
         },
         mengunduh: false,

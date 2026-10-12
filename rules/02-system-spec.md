@@ -144,7 +144,9 @@ untuk sebuah CHECKIN c dari karyawan K pada tanggal T:
 ## 11. Rekap dan ekspor
 
 - **BR-R1** Filter: rentang tanggal (inklusif) dan toko (semua atau satu).
-- **BR-R2** **Syarat ekspor (K-13):** dalam filter tidak boleh ada event `MENUNGGU` dan tidak boleh ada check-in terbuka. Jika ada, ekspor diblokir dan sistem menampilkan jumlah + tautan ke daftar verifikasi yang terfilter.
+- **BR-R2** **Syarat ekspor (K-13, disempurna K-63):** dalam filter tidak boleh ada event `MENUNGGU`,
+  tidak boleh ada check-in terbuka, **dan tidak boleh ada laporan agenda `MENUNGGU`**. Jika ada, ekspor
+  diblokir dan sistem menampilkan jumlah + tautan ke daftar verifikasi yang terfilter.
 - **BR-R3** Karyawan terjadwal tanpa absen dan tanpa penandaan: **peringatan saja**, tidak memblokir ekspor (K-33).
 - **BR-R4** **Sheet "Ringkasan"** (satu baris per karyawan per toko dalam periode): nama karyawan, toko, hari hadir (BR-H1), hari izin, hari tanpa keterangan, total menit terlambat final.
 - **BR-R5** **Sheet "Detail Harian"** (satu baris per pasangan/event, per tanggal): tanggal, karyawan, toko, slot jadwal acuan, waktu check-in, waktu check-out, status check-in, status check-out, selisih sistem (menit), keterlambatan final (menit), penandaan (jenis + catatan), catatan koreksi.
@@ -172,6 +174,8 @@ untuk sebuah CHECKIN c dari karyawan K pada tanggal T:
 | Tandai tidak berangkat | ✔ | ✔ |
 | Koreksi manual | ✔ | ✔ |
 | Rekap dan ekspor | ✔ | ✔ |
+| Agenda (buat, assign, batal, ubah tujuan) | ✔ | ✔ |
+| Verifikasi laporan agenda | ✔ | ✔ |
 | Data master (toko, shift, karyawan, penempatan) | ✘ | ✔ |
 | Cabut/buat ulang link karyawan | ✘ | ✔ |
 | Kelola akun admin | ✘ | ✔ |
@@ -223,3 +227,83 @@ Izin **wajib diperiksa di server** pada setiap endpoint, bukan hanya disembunyik
 | Telegram tidak merespons | Absen dibatalkan (BR-A4) |
 | Lokasi ditolak | Absen lanjut, `lokasi_status = DITOLAK` |
 | Tanpa jadwal | Absen boleh, selisih kosong |
+
+## 18. Aturan agenda (K-57 s.d. K-65)
+
+Bagian ini ditambahkan pemilik 2026-10-03. Semuanya **di luar** spec absensi (§3–§11) dan
+sengaja tidak berbagi aturan apa pun dengannya kecuali yang disebut eksplisit.
+
+### 18.1 Istilah
+
+| Istilah | Arti |
+|---|---|
+| Agenda | Satu tugas yang dibuat admin atau oleh karyawan sendiri, lalu dikerjakan oleh penerima |
+| Penerima | Karyawan yang boleh mengerjakan agenda tersebut. **Dihitung ulang dari penempatan saat ini** (BR-G2) |
+| Laporan | Satu pengerjaan satu agenda oleh satu karyawan pada satu percobaan |
+| Percobaan | Nomor urut pengerjaan; `DITOLAK` tidak menghanguskan percobaan berikutnya (K-61) |
+
+### 18.2 Pembuatan
+
+- **BR-G1** Satu agenda: `judul` (wajib, tidak kosong), `keterangan` (opsional), `wajib_foto`
+  (pilihan pembuat), `cakupan`, `toko_id` (bila `cakupan = TOKO`), dan `target_tanggal`
+  (**opsional** — boleh `NULL`). `judul` dan `keterangan` **tidak bisa diubah** setelah pembuatan (K-62).
+- **BR-G2** Penerima **bukan baris yang dibekukan**, melainkan hasil resolusi dari `cakupan`
+  terhadap penempatan **saat ini**:
+  - `KARYAWAN` → daftar karyawan eksplisit pada agenda (tidak berubah oleh perpindahan toko).
+  - `TOKO` → seluruh karyawan aktif yang penempatan terbukanya di `toko_id` agenda **saat ini**.
+  - `SEMUA` → seluruh karyawan aktif **saat ini**, termasuk yang belum ditempatkan.
+  Hanya karyawan `aktif = 1`. Ini **sengaja berbeda** dari snapshot BR-A12/BR-P4 — lihat catatan K-58.
+- **BR-G3** Agenda dibuat oleh admin maupun oleh karyawan sendiri. Agenda buatan karyawan selalu
+  milik karyawan itu sendiri (cakupan efektif satu karyawan), **wajib foto** (K-59), dan
+  **tidak boleh** memiliki baris tujuan eksplisit.
+- **BR-G4** Status agenda hanya `AKTIF` dan `DIBATALKAN`. Pembatalan wajib alasan, mencatat
+  `dibatalkan_at` dan `dibatalkan_oleh`. **Tidak ada hapus permanen** (K-62).
+- **BR-G5** Daftar tujuan boleh diubah **hanya** selagi agenda `AKTIF` **dan** agenda itu dibuat
+  admin (bukan agenda karyawan sendiri). Mengganti `cakupan` atau daftar tujuan **tidak**
+  menyentuh laporan yang sudah ada.
+
+### 18.3 Pengerjaan oleh karyawan
+
+- **BR-G6** Satu karyawan pada satu agenda hanya boleh punya **satu laporan aktif**
+  (`status <> 'DITOLAK'`). Ditegakkan index unik parsial di database, bukan hanya di aplikasi.
+- **BR-G7** Alur wajib foto: **foto before** → `DRAFT` (menyimpan foto before) → foto after →
+  `MENUNGGU`. Setiap `DRAFT` mengunggah ulang foto before ke Telegram sehingga foto sebelumnya
+  menjadi yatim, sama seperti catatan foto yatim di `rules/03` §6.
+- **BR-G8** Agenda tanpa foto wajib: satu laporan sudah cukup, keterangan opsional, langsung `MENUNGGU`.
+- **BR-G9** `DRAFT` **tidak pernah** ditampilkan ke admin, dan **tidak** memblokir apa pun.
+
+### 18.4 Verifikasi
+
+- **BR-G10** Semua laporan termasuk agenda buatan karyawan sendiri masuk antrean verifikasi admin
+  pada halaman **terpisah** dari verifikasi absensi (kolomnya berbeda: tidak ada keterlambatan,
+  tidak ada pasangan).
+- **BR-G11** `DITOLAK` **wajib** alasan. Setelah ditolak karyawan boleh mengulang: laporan baru
+  dengan `percobaan` berikutnya, `request_id` baru, foto baru.
+- **BR-G12** Keputusan `DISETUJUI` ↔ `DITOLAK` boleh diubah selama periode belum diekspor.
+  Pada periode **sudah diekspor** hanya **Super Admin** (K-32/K-65) — persis seperti BR-V6/BR-R8.
+- **BR-G13** Verifikasi laporan agenda **tidak pernah** butuh menit keterlambatan final
+  (BR-V7 tidak berlaku di sini — tidak ada jadwal yang dibandingkan).
+
+### 18.5 Periode, ekspor, dashboard
+
+- **BR-G14** Periode laporan agenda = **tanggal submit (foto after)**, bukan tanggal agenda dibuat
+  dan bukan `target_tanggal` (K-63). `toko_id` pada laporan adalah **snapshot** saat submit
+  (konsisten BR-A12), walaupun penerima agenda bersifat dinamis.
+- **BR-G15** **Syarat ekspor (K-13) menjadi tiga:** dalam rentang+toko terpilih tidak boleh ada
+  (a) event `MENUNGGU`, (b) check-in terbuka, dan (c) laporan agenda `MENUNGGU`.
+  **"Ditugaskan tapi belum dikerjakan" TIDAK memblokir** — diperlakukan sebagai peringatan saja
+  seperti K-33, karena agenda tanpa `target_tanggal` bisa menggantung ekspor selamanya.
+- **BR-G16** Rekap Excel menambah sheet **`Detail Agenda`** (satu baris per laporan) dan dua kolom
+  aggregate pada sheet `Ringkasan`: jumlah agenda `DISETUJUI` dan jumlah agenda `DITOLAK`.
+  Foto **tidak** masuk Excel — URL unduhan Telegram mengandung token bot (`rules/03` §7).
+- **BR-G17** Dashboard per toko hari ini menambah metrik agenda: ditugaskan / selesai / menunggu
+  verifikasi. Ketiganya memakai tanggal submit.
+
+### 18.6 Pelaksanaan
+
+- **BR-G18** **BR-A9 (tidak berangkat) TIDAK memblokir agenda.** Karyawan yang ditandai tidak
+  berangkat tetap bisa mengerjakan agenda (K-65). Ini kebalikan dari BR-A9 dan disengaja.
+- **BR-G19** Semua aksi admin atas agenda (buat, batal, ubah tujuan, verifikasi) masuk audit log
+  di dalam transaksi yang sama, dengan nilai sebelum/sesudah (BR-AU1).
+- **BR-G20** Admin dan Super Admin **sama-sama** boleh membuat dan memverifikasi agenda
+  (izin `agenda` dan `verifikasi_agenda` pada §13).

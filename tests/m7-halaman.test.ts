@@ -13,6 +13,7 @@ function dataSepuluhToko() {
   return {
     tanggalPanjang: 'Jumat, 3 Okt 2026',
     antrean: 12,
+    antreanAgenda: 5,
     kartu: Array.from({ length: 10 }, (_, i) => ({
       toko_id: i + 1,
       toko_nama: `Toko ${i + 1}`,
@@ -20,6 +21,7 @@ function dataSepuluhToko() {
       sudah_absen: 1,
       terlambat: i === 0 ? 1 : 0,
       belum_absen: 1,
+      agenda: { menunggu: 2, selesai: 3, ditolak: 1 },
     })),
   };
 }

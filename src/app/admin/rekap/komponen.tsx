@@ -32,6 +32,8 @@ export interface HasilPemeriksaan {
   boleh: boolean;
   jumlahMenunggu: number;
   jumlahCheckinTerbuka: number;
+  /** BR-G15 (K-63): laporan agenda MENUNGGU yang memblokir ekspor. */
+  jumlahAgendaMenunggu: number;
   peringatan: number;
 }
 
@@ -44,25 +46,35 @@ export interface DataRekap {
 export function PanelRekap({ data, mengunduh, onUnduh }: { data: DataRekap; mengunduh: boolean; onUnduh: () => void }) {
   const { pemeriksaan, ringkasan, filter } = data;
   const bisaEkspor = pemeriksaan.boleh;
-  const verifikasiHref =
-    `/admin/verifikasi?status=MENUNGGU&dari=${filter.dari}&sampai=${filter.sampai}` +
-    (filter.tokoId === null ? '' : `&toko_id=${filter.tokoId}`);
+  const parameterToko = filter.tokoId === null ? '' : `&toko_id=${filter.tokoId}`;
+  const verifikasiHref = `/admin/verifikasi?status=MENUNGGU&dari=${filter.dari}&sampai=${filter.sampai}${parameterToko}`;
+  const verifikasiAgendaHref = `/admin/verifikasi-agenda?status=MENUNGGU&dari=${filter.dari}&sampai=${filter.sampai}${parameterToko}`;
+  // Hanya penyebab yang jumlahnya > 0 yang disebut. Kalau penyebab yang nol ikut
+  // disebut, admin akan mengejar angka 0 sebelum menemukan masalah sebenarnya.
+  const sebab: string[] = [];
+  if (pemeriksaan.jumlahMenunggu > 0) sebab.push(`${pemeriksaan.jumlahMenunggu} absensi menunggu verifikasi`);
+  if (pemeriksaan.jumlahCheckinTerbuka > 0) sebab.push(`${pemeriksaan.jumlahCheckinTerbuka} check-in tanpa check-out`);
+  if (pemeriksaan.jumlahAgendaMenunggu > 0) sebab.push(`${pemeriksaan.jumlahAgendaMenunggu} laporan agenda menunggu verifikasi`);
   return (
     <div className="flex flex-col gap-3">
       {pemeriksaan.boleh ? (
         <Alert className="border-green-300 bg-green-50 text-green-900 dark:border-green-800 dark:bg-green-950 dark:text-green-100">
-          <AlertDescription>Semua absensi pada periode ini sudah diverifikasi.</AlertDescription>
+          <AlertDescription>Semua absensi dan agenda pada periode ini sudah diverifikasi.</AlertDescription>
         </Alert>
       ) : (
         <Alert variant="destructive">
           <AlertDescription className="flex flex-wrap items-center gap-2">
-            <span>
-              Ekspor belum bisa dilakukan: masih ada {pemeriksaan.jumlahMenunggu} absensi menunggu
-              verifikasi dan {pemeriksaan.jumlahCheckinTerbuka} check-in tanpa check-out.
-            </span>
-            <Link href={verifikasiHref} className="underline underline-offset-4">
-              Buka Verifikasi
-            </Link>
+            <span>Ekspor belum bisa dilakukan: masih ada {sebab.join(', ')}.</span>
+            {pemeriksaan.jumlahMenunggu > 0 || pemeriksaan.jumlahCheckinTerbuka > 0 ? (
+              <Link href={verifikasiHref} className="underline underline-offset-4">
+                Buka Verifikasi Absensi
+              </Link>
+            ) : null}
+            {pemeriksaan.jumlahAgendaMenunggu > 0 ? (
+              <Link href={verifikasiAgendaHref} className="underline underline-offset-4">
+                Buka Verifikasi Agenda
+              </Link>
+            ) : null}
           </AlertDescription>
         </Alert>
       )}
@@ -84,6 +96,8 @@ export function PanelRekap({ data, mengunduh, onUnduh }: { data: DataRekap; meng
                 <TableHead>Izin</TableHead>
                 <TableHead>Tanpa Keterangan</TableHead>
                 <TableHead>Total Menit Terlambat Final</TableHead>
+                <TableHead>Agenda Selesai</TableHead>
+                <TableHead>Agenda Ditolak</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -95,6 +109,8 @@ export function PanelRekap({ data, mengunduh, onUnduh }: { data: DataRekap; meng
                   <TableCell>{r.hari_izin}</TableCell>
                   <TableCell>{r.hari_tanpa_keterangan}</TableCell>
                   <TableCell>{r.total_terlambat_final}</TableCell>
+                  <TableCell>{r.agenda_selesai}</TableCell>
+                  <TableCell>{r.agenda_ditolak}</TableCell>
                 </TableRow>
               ))}
             </TableBody>

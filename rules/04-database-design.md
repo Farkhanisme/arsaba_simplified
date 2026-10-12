@@ -326,7 +326,7 @@ WHERE ci.jenis = 'CHECKIN' AND ci.status = 'DISETUJUI'
 GROUP BY ci.karyawan_id, ci.toko_id;
 ```
 
-**Pra-syarat ekspor (BR-R2). Keduanya harus bernilai 0:**
+**Pra-syarat ekspor (BR-R2, disempurna K-63). Ketiganya harus bernilai 0:**
 
 ```sql
 -- (a) event menunggu dalam filter
@@ -340,6 +340,10 @@ WHERE ci.jenis = 'CHECKIN' AND ci.status <> 'DITOLAK'
   AND NOT EXISTS (
     SELECT 1 FROM absensi co
     WHERE co.checkin_id = ci.id AND co.jenis = 'CHECKOUT' AND co.status <> 'DITOLAK');
+
+-- (c) laporan agenda menunggu verifikasi dalam filter (BR-G15)
+SELECT COUNT(*) FROM agenda_laporan
+WHERE status = 'MENUNGGU' AND tanggal BETWEEN ? AND ? AND (? IS NULL OR toko_id = ?);
 ```
 
 **Nomor urut N sebuah check-in (untuk memilih slot acuan; string ISO seragam offset):**
@@ -360,6 +364,48 @@ Selisih menit dan penentuan slot dihitung di aplikasi (`server/aturan`), bukan d
 - Migrasi bersifat maju saja; perubahan skema baru = file baru.
 - Isi seed: pengaturan ambang, satu akun Super Admin. Data toko, karyawan, dan shift dimasukkan lewat UI master.
 
+## 6a. Tabel agenda (migrasi `0002_agenda.sql`)
+
+Menambahkan fitur agenda (K-57 s.d. K-65). DDL lengkap ada di `migrations/0002_agenda.sql`;
+`0001_init.sql` **tidak diubah** sama sekali.
+
+Tiga hal yang membuat skema ini berbeda dari tabel absensi, dan ketiganya disengaja:
+
+1. **Penerima tidak dibekukan.** Tidak ada baris "penerima per agenda" untuk `TOKO`/`SEMUA`.
+   Hanya `KARYAWAN` memakai tabel `agenda_tujuan`. Resolusi penerima dilakukan fungsi murni
+   `penerimaAgenda()` di `server/aturan/agenda.ts` terhadap penempatan **saat itu** (BR-G2, K-58).
+   Karena itu tidak ada satu pun kolom `*_snapshot` di tabel `agenda`.
+2. **`toko_id` snapshot ada di `agenda_laporan`, bukan di `agenda`.** Laporan memotret toko
+   karyawan saat submit (BR-G14), supaya rekap tidak ikut berubah ketika karyawan dipindah
+   setelah pengerjaan.
+3. **Dua foto per laporan.** `sebelum_*` dan `sesudah_*` masing-masing tripel
+   `file_id/chat_id/message_id` Telegram, mengikuti pola `absensi.foto_*`.
+
+Syarat yang **tidak bisa** ditulis sebagai `CHECK` dan karena itu memakai **trigger**:
+
+| Syarat | Kenapa tidak bisa `CHECK` | Ditegakkan oleh |
+|---|---|---|
+| Agenda `wajib_foto = 1` ⇒ laporan non-draft punya kedua foto; draft punya foto before | `wajib_foto` ada di tabel `agenda`, laporan ada di `agenda_laporan`; `CHECK` hanya boleh satu tabel | trigger `agenda_laporan_*` |
+| Agenda buatan karyawan tidak boleh punya baris `agenda_tujuan` | lintas tabel | trigger `agenda_tujuan_tolak_agenda_karyawan` |
+
+Syarat satu-tabel yang **tetap** memakai `CHECK`:
+
+| Syarat | Aturan |
+|---|---|
+| Tepat satu pembuat | `(dibuat_oleh IS NOT NULL) <> (dibuat_oleh_karyawan IS NOT NULL)` |
+| `cakupan = 'TOKO'` ⇒ `toko_id` diisi | `cakupan <> 'TOKO' OR toko_id IS NOT NULL` |
+| `DIBATALKAN` ⇒ alasan, waktu, pelaku | mirroring `absensi` BR-V2 |
+| `DRAFT` ⇒ `sesudah_file_id IS NULL` | laporan draft memang belum punya foto after |
+| `DITOLAK` ⇒ `alasan_tolak` tidak kosong | mirroring `absensi` BR-V2 |
+| `DRAFT` ⇒ `toko_id` boleh NULL | toko baru diketahui saat submit |
+
+Index unik parsial `uq_laporan_aktif_per_agenda` menegakkan BR-G6: satu karyawan satu laporan
+aktif per agenda; `DITOLAK` melepas jatah sehingga percobaan berikutnya bisa dibuat (K-61) —
+pola yang sama persis dengan `uq_checkout_aktif_per_checkin`.
+
 ## 7. Catatan volume
 
 26 karyawan × maksimal 2 pasang per hari → kurang dari ~110 event/hari. Indeks di atas sudah memadai; tidak perlu partisi/optimasi tambahan.
+
+Agenda menambah paling banyak 2 baris foto per laporan; tidak ada batas jumlah agenda per karyawan
+dalam keputusan pemilik, jadi tabel tumbuh hanya sebanding dengan pemakaian.

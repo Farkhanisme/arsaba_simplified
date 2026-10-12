@@ -216,7 +216,7 @@ describe('M8 rekap & ekspor', () => {
     const res = await periksa(req('/api/admin/rekap/periksa', { method: 'POST', body: { dari: D5, sampai: D5, toko_id: toko['Toko A'] }, cookie: admin }));
     expect(res.status).toBe(200);
     const data = (await res.json()).data as { boleh: boolean; jumlahMenunggu: number; jumlahCheckinTerbuka: number; peringatan: number };
-    expect(data).toEqual({ boleh: true, jumlahMenunggu: 0, jumlahCheckinTerbuka: 0, peringatan: 0 });
+    expect(data).toEqual({ boleh: true, jumlahMenunggu: 0, jumlahCheckinTerbuka: 0, jumlahAgendaMenunggu: 0, peringatan: 0 });
   });
 
   it('BR-R3: terjadwal tanpa absen/tanda = peringatan saja, ekspor tetap LOLOS', async () => {
@@ -235,7 +235,7 @@ describe('M8 rekap & ekspor', () => {
     const res = await periksa(req('/api/admin/rekap/periksa', { method: 'POST', body: { dari: D3, sampai: D3, toko_id: toko['Toko A'] }, cookie: admin }));
     expect(res.status).toBe(200);
     const data = (await res.json()).data as { boleh: boolean; jumlahMenunggu: number; jumlahCheckinTerbuka: number; peringatan: number };
-    expect(data).toEqual({ boleh: true, jumlahMenunggu: 0, jumlahCheckinTerbuka: 0, peringatan: 1 });
+    expect(data).toEqual({ boleh: true, jumlahMenunggu: 0, jumlahCheckinTerbuka: 0, jumlahAgendaMenunggu: 0, peringatan: 1 });
   });
 
   it('Detail: selisih sistem dan final tidak tertukar (repo, kasus pembeda)', async () => {
@@ -292,14 +292,14 @@ describe('M8 rekap & ekspor', () => {
     const ringkasan = ((await prev.json()).data as { ringkasan: KartuRingkasan[] }).ringkasan;
     const wb = new ExcelJS.Workbook();
     await wb.xlsx.load(bodies[0]);
-    expect(wb.worksheets.map((w) => w.name)).toEqual(['Ringkasan', 'Detail Harian']);
+    expect(wb.worksheets.map((w) => w.name)).toEqual(['Ringkasan', 'Detail Harian', 'Detail Agenda']);
     const ws = wb.getWorksheet('Ringkasan')!;
     const dariFile: unknown[][] = [];
     ws.eachRow((row, n) => {
       if (n === 1) return;
-      dariFile.push([row.getCell(1).value, row.getCell(3).value, row.getCell(4).value, row.getCell(5).value, row.getCell(6).value]);
+      dariFile.push([row.getCell(1).value, row.getCell(3).value, row.getCell(4).value, row.getCell(5).value, row.getCell(6).value, row.getCell(7).value, row.getCell(8).value]);
     });
-    expect(dariFile).toEqual(ringkasan.map((r) => [r.karyawan_nama, r.hari_hadir, r.hari_izin, r.hari_tanpa_keterangan, r.total_terlambat_final]));
+    expect(dariFile).toEqual(ringkasan.map((r) => [r.karyawan_nama, r.hari_hadir, r.hari_izin, r.hari_tanpa_keterangan, r.total_terlambat_final, r.agenda_selesai, r.agenda_ditolak]));
   });
 
   it('Excel: 12 kolom Detail, nilai WIB, baca balik', async () => {

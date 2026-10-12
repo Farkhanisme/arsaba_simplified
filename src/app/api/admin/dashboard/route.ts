@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { getDb } from '../../../../server/db';
 import { guard } from '../../../../server/guard';
 import { tanggalWIB, tanggalPanjangWIB } from '../../../../server/waktu';
-import { metrikPerToko, antreanVerifikasi } from '../../../../server/repo/dashboard';
+import { metrikPerToko, antreanVerifikasi, antreanVerifikasiAgenda } from '../../../../server/repo/dashboard';
 
 /**
  * GET /api/admin/dashboard — kartu per toko hari ini (server) + antrean.
@@ -12,9 +12,15 @@ import { metrikPerToko, antreanVerifikasi } from '../../../../server/repo/dashbo
 export const GET = guard('dashboard', async () => {
   const db = getDb();
   const tanggal = tanggalWIB();
-  const [kartu, antrean] = await Promise.all([metrikPerToko(tanggal, db), antreanVerifikasi(db)]);
+  // BR-G17: antrean agenda ikut ditampilkan, karena laporan MENUNGGU ikut memblokir
+  // ekspor (K-63). Kalau tidak, admin baru tahu penyebabnya setelah gagal mengekspor.
+  const [kartu, antrean, antreanAgenda] = await Promise.all([
+    metrikPerToko(tanggal, db),
+    antreanVerifikasi(db),
+    antreanVerifikasiAgenda(db),
+  ]);
   return NextResponse.json({
     kode: 'OK',
-    data: { tanggal, tanggalPanjang: tanggalPanjangWIB(tanggal), kartu, antrean },
+    data: { tanggal, tanggalPanjang: tanggalPanjangWIB(tanggal), kartu, antrean, antreanAgenda },
   });
 });

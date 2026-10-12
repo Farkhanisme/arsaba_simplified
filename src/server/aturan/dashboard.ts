@@ -6,6 +6,7 @@
  * - Hitung ORANG (Set karyawan_id), bukan event.
  */
 import { hitungN, pilihSlot, hitungSelisih, type SlotAcuan, type ItemHitungN } from './keterlambatan';
+import { hitungMetrikAgenda } from './laporan';
 import { menitDalamHari } from '../waktu';
 
 export interface CheckinDashboard {
@@ -39,6 +40,28 @@ export function hitungBelumAbsen(terjadwal: number, sudahAbsen: number, bertanda
   return Math.max(0, terjadwal - sudahAbsen - bertanda);
 }
 
+/**
+ * BR-G17: metrik agenda per toko pada tanggal itu.
+ *
+ * Dihitung dari LAPORAN, bukan dari agenda: satu karyawan bisa punya beberapa
+ * laporan pada tanggal sama karena percobaan berulang, dan yang dihitung adalah
+ * berapa pekerjaannya sudah selesai/belum — bukan berapa tugas yang ada.
+ *
+ * `ditugaskan` sengaja TIDAK dihitung dari agenda. penerima agenda bersifat
+ * dinamis (BR-G2), jadi "berapa tugas yang diberikan ke toko ini" tidak punya
+ * satu jawaban stabil untuk tanggal lampau: memindahkan karyawan diam-diam
+ * mengubahnya. Menampilkan angka itu berarti menampilkan sesuatu yang bisa
+ * berubah setelahtombol ditekan.
+ */
+export interface MetrikAgendaToko {
+  /** Laporan MENUNGGU pada tanggal itu (antrean verifikasi). */
+  menunggu: number;
+  /** Laporan DISETUJUI pada tanggal itu. */
+  selesai: number;
+  /** Laporan DITOLAK pada tanggal itu. */
+  ditolak: number;
+}
+
 export interface KartuToko {
   toko_id: number;
   toko_nama: string;
@@ -46,11 +69,15 @@ export interface KartuToko {
   sudah_absen: number;
   terlambat: number;
   belum_absen: number;
+  agenda: MetrikAgendaToko;
 }
 
 /**
  * Merakit satu kartu toko dari himpunan karyawan_id (hitung ORANG).
  * terlambat harus ⊆ sudah_absen; belum_absen dihitung via hitungBelumAbsen.
+ *
+ * `statusLaporanAgenda` = status laporan agenda pada tanggal itu di toko itu.
+ * Default-nya nol supaya pemanggil lama tidak wajib menyebutnya.
  */
 export function kartuToko(
   toko_id: number,
@@ -59,7 +86,9 @@ export function kartuToko(
   sudahAbsen: Set<number>,
   terlambat: Set<number>,
   bertanda: Set<number>,
+  statusLaporanAgenda: string[] = [],
 ): KartuToko {
+  const metrik = hitungMetrikAgenda(statusLaporanAgenda);
   return {
     toko_id,
     toko_nama,
@@ -67,5 +96,6 @@ export function kartuToko(
     sudah_absen: sudahAbsen.size,
     terlambat: terlambat.size,
     belum_absen: hitungBelumAbsen(terjadwal.size, sudahAbsen.size, bertanda.size),
+    agenda: metrik,
   };
 }

@@ -1,14 +1,28 @@
 /**
- * Susun workbook Excel rekap (M8) dengan exceljs. Tepat DUA sheet,
- * nama persis "Ringkasan" dan "Detail Harian". Waktu sudah WIB (string
- * dd/MM/yyyy dan HH:mm dari repo) — tulis apa adanya, tanpa konversi.
- * Tidak ada kolom foto/URL/token di sini.
+ * Susun workbook Excel rekap (M8 + M14) dengan exceljs. TIGA sheet:
+ * "Ringkasan", "Detail Harian", dan "Detail Agenda" (BR-G16).
+ * Waktu sudah WIB (string dd/MM/yyyy dan HH:mm dari repo) — tulis apa adanya,
+ * tanpa konversi.
+ *
+ * TIDAK ada kolom foto/URL Telegram: URL unduhan Telegram mengandung token bot
+ * dan tidak boleh sampai ke klien (rules/03 §7). Detail Agenda karena itu hanya
+ * teks: judul, status, alasan, dan siapa yang memverifikasi.
  */
 import ExcelJS from 'exceljs';
 import type { KartuRingkasan } from './aturan/rekap';
 import type { BarisDetail } from './repo/rekap';
+import type { BarisDetailAgenda } from './repo/agenda-laporan';
 
-const HEADER_RINGKASAN = ['Nama Karyawan', 'Toko', 'Hari Hadir', 'Hari Izin', 'Hari Tanpa Keterangan', 'Total Menit Terlambat Final'];
+const HEADER_RINGKASAN = [
+  'Nama Karyawan',
+  'Toko',
+  'Hari Hadir',
+  'Hari Izin',
+  'Hari Tanpa Keterangan',
+  'Total Menit Terlambat Final',
+  'Agenda Selesai',
+  'Agenda Ditolak',
+];
 
 const HEADER_DETAIL = [
   'Tanggal',
@@ -25,19 +39,50 @@ const HEADER_DETAIL = [
   'Catatan Koreksi',
 ];
 
+const HEADER_DETAIL_AGENDA = [
+  'Tanggal Submit',
+  'Karyawan',
+  'Toko',
+  'Judul Agenda',
+  'Foto',
+  'Percobaan Ke',
+  'Status',
+  'Keterangan',
+  'Alasan Tolak',
+  'Diverifikasi Oleh',
+];
+
 /** Tepat 12 kolom sesuai BR-R5 — dijaga tes baca-balik. */
 export function kolomDetail(): string[] {
   return [...HEADER_DETAIL];
 }
 
-export async function buatWorkbook(ringkasan: KartuRingkasan[], detail: BarisDetail[]): Promise<Buffer> {
+/** Tepat 10 kolom sesuai BR-G16 — dijaga tes baca-balik. */
+export function kolomDetailAgenda(): string[] {
+  return [...HEADER_DETAIL_AGENDA];
+}
+
+export async function buatWorkbook(
+  ringkasan: KartuRingkasan[],
+  detail: BarisDetail[],
+  detailAgenda: BarisDetailAgenda[] = [],
+): Promise<Buffer> {
   const wb = new ExcelJS.Workbook();
   wb.creator = 'Arsaba Management Center';
 
   const ws1 = wb.addWorksheet('Ringkasan');
   ws1.addRow(HEADER_RINGKASAN);
   for (const r of ringkasan) {
-    ws1.addRow([r.karyawan_nama, r.toko_nama, r.hari_hadir, r.hari_izin, r.hari_tanpa_keterangan, r.total_terlambat_final]);
+    ws1.addRow([
+      r.karyawan_nama,
+      r.toko_nama,
+      r.hari_hadir,
+      r.hari_izin,
+      r.hari_tanpa_keterangan,
+      r.total_terlambat_final,
+      r.agenda_selesai,
+      r.agenda_ditolak,
+    ]);
   }
 
   const ws2 = wb.addWorksheet('Detail Harian');
@@ -56,6 +101,25 @@ export async function buatWorkbook(ringkasan: KartuRingkasan[], detail: BarisDet
       d.final_menit,
       d.penandaan,
       d.catatan_koreksi,
+    ]);
+  }
+
+  // Sheet ketiga (BR-G16). Selalu dibuat walau kosong, supaya pembaca yang
+  // mengecek "ada sheet Detail Agenda" tidak perlu menangani kasus kosong.
+  const ws3 = wb.addWorksheet('Detail Agenda');
+  ws3.addRow(HEADER_DETAIL_AGENDA);
+  for (const a of detailAgenda) {
+    ws3.addRow([
+      a.tanggal,
+      a.karyawan_nama,
+      a.toko_nama ?? '—',
+      a.judul_agenda,
+      a.wajib_foto,
+      a.percobaan,
+      a.status,
+      a.keterangan,
+      a.alasan_tolak,
+      a.diverifikasi_nama,
     ]);
   }
 

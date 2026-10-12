@@ -41,6 +41,10 @@ export interface InputRingkasan {
   hariTanpaKeterangan: number;
   /** Jumlah angka final check-in (NULL sudah dijadikan 0 oleh pemanggil). */
   totalFinal: number;
+  /** BR-G16: jumlah laporan agenda DISETUJUI dalam periode. */
+  agendaSelesai: number;
+  /** BR-G16: jumlah laporan agenda DITOLAK dalam periode. */
+  agendaDitolak: number;
 }
 
 export interface KartuRingkasan {
@@ -52,9 +56,16 @@ export interface KartuRingkasan {
   hari_izin: number;
   hari_tanpa_keterangan: number;
   total_terlambat_final: number;
+  agenda_selesai: number;
+  agenda_ditolak: number;
 }
 
-/** BR-R4: satu baris per karyawan per toko. WAJIB pakai angka FINAL. */
+/**
+ * BR-R4: satu baris per karyawan per toko. WAJIB pakai angka FINAL (BR-L3).
+ *
+ * Kolom agenda ditambahkan BR-G16. Sifatnya berbeda dari hitungan absensi: agenda
+ * menghitung LAPORAN, bukan hari — jadi dua laporan di tanggal sama tetap dua.
+ */
 export function rekapKaryawan(input: InputRingkasan): KartuRingkasan {
   return {
     karyawan_id: input.karyawan_id,
@@ -65,6 +76,8 @@ export function rekapKaryawan(input: InputRingkasan): KartuRingkasan {
     hari_izin: input.hariIzin,
     hari_tanpa_keterangan: input.hariTanpaKeterangan,
     total_terlambat_final: input.totalFinal,
+    agenda_selesai: input.agendaSelesai,
+    agenda_ditolak: input.agendaDitolak,
   };
 }
 

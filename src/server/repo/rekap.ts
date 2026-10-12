@@ -13,6 +13,7 @@ import { hitungHariHadir, rekapKaryawan, hitungPeringatan, type KartuRingkasan }
 import { bacaAmbang } from './pengaturan';
 import { jadwalPadaTanggal } from './absensi';
 import { checkinUntukHitungN } from './verifikasi';
+import { barisDetailAgenda, hitungAgendaPerKaryawan, type BarisDetailAgenda } from './agenda-laporan';
 import { GalatAturan } from './penempatan';
 
 export interface FilterRekap {
@@ -25,6 +26,8 @@ export interface HasilPeriksa {
   boleh: boolean;
   jumlahMenunggu: number;
   jumlahCheckinTerbuka: number;
+  /** BR-G15 (K-63): laporan agenda MENUNGGU yang memblokir ekspor. */
+  jumlahAgendaMenunggu: number;
   peringatan: number;
 }
 
@@ -35,9 +38,17 @@ function syaringToko(kolom: string, tokoId: number | null, syarat: string[], arg
 }
 
 /**
- * BR-R2: (a) event MENUNGGU dalam filter harus 0, (b) check-in terbuka
- * dalam filter harus 0. Definisi terbuka = CHECKIN aktif tanpa CHECKOUT
- * aktif (varian tanpa batas 20 jam — admin). Satu query rentang, bukan 26.
+ * BR-R2 disempurna K-63 + BR-G15: TIGA syarat harus 0.
+ *   (a) event absensi MENUNGGU dalam filter,
+ *   (b) check-in terbuka dalam filter (varian tanpa batas 20 jam — admin),
+ *   (c) laporan agenda MENUNGGU dalam filter.
+ *
+ * Yang SENGAJA TIDAK memblokir: agenda yang ditugaskan tapi belum dikerjakan, dan
+ * laporan DRAFT. Alasannya tercatat di K-63 — agenda tanpa tanggal target bisa
+ * menggantung ekspor selamanya. Fungsi murni `laporanMemblokirEkspor()` yang
+ * menetapkan itu, dipakai di sini dan di eksekusi ekspor lewat jalur yang sama.
+ *
+ * Satu query rentang per syarat, bukan per karyawan.
  */
 export async function periksaSyaratEkspor(filter: FilterRekap, ex: Executor): Promise<HasilPeriksa> {
   const sA: string[] = ["status = 'MENUNGGU'", 'tanggal BETWEEN ? AND ?'];
@@ -55,8 +66,18 @@ export async function periksaSyaratEkspor(filter: FilterRekap, ex: Executor): Pr
   syaringToko('ci.toko_id', filter.tokoId, sB, aB);
   const terbuka = await ex.execute({ sql: `SELECT COUNT(*) AS c FROM absensi ci WHERE ${sB.join(' AND ')}`, args: aB });
 
+  // (c) laporan agenda menunggu verifikasi.
+  const sG: string[] = ['status = ?', 'tanggal BETWEEN ? AND ?'];
+  const aG: (string | number | null)[] = ['MENUNGGU', filter.dari, filter.sampai];
+  syaringToko('toko_id', filter.tokoId, sG, aG);
+  const agendaMenunggu = await ex.execute({
+    sql: `SELECT COUNT(*) AS c FROM agenda_laporan WHERE ${sG.join(' AND ')}`,
+    args: aG,
+  });
+
   const jumlahMenunggu = Number((menunggu.rows[0] as Record<string, unknown>)['c']);
   const jumlahCheckinTerbuka = Number((terbuka.rows[0] as Record<string, unknown>)['c']);
+  const jumlahAgendaMenunggu = Number((agendaMenunggu.rows[0] as Record<string, unknown>)['c']);
 
   // BR-R3: terjadwal tanpa event apa pun dan tanpa penandaan (peringatan saja).
   const sJ: string[] = ['tanggal BETWEEN ? AND ?'];
@@ -77,7 +98,13 @@ export async function periksaSyaratEkspor(filter: FilterRekap, ex: Executor): Pr
     new Set((td.rows as unknown as { karyawan_id: number }[]).map((r) => r.karyawan_id)),
   );
 
-  return { boleh: jumlahMenunggu === 0 && jumlahCheckinTerbuka === 0, jumlahMenunggu, jumlahCheckinTerbuka, peringatan };
+  return {
+    boleh: jumlahMenunggu === 0 && jumlahCheckinTerbuka === 0 && jumlahAgendaMenunggu === 0,
+    jumlahMenunggu,
+    jumlahCheckinTerbuka,
+    jumlahAgendaMenunggu,
+    peringatan,
+  };
 }
 
 interface KaryawanToko {
@@ -88,7 +115,14 @@ interface KaryawanToko {
 }
 
 async function karyawanDalamCakupan(filter: FilterRekap, ex: Executor): Promise<KaryawanToko[]> {
-  // Union karyawan yang punya event, penandaan, atau jadwal dalam cakupan.
+  // Union karyawan yang punya event, penandaan, jadwal, ATAU laporan agenda dalam
+  // cakupan.
+  //
+  // `agenda_laporan` HARUS ikut di sini (BR-G16): kalau tidak, karyawan yang
+  // hanya bekerja pada agenda — tanpa absensi, jadwal, atau penandaan — tidak akan
+  // pernah muncul di sheet Ringkasan — kolom Agenda Selesai/Ditolak yang baru
+  // ditambah akan selalu 0 untuk dia, dan itu tidak ketahuan karena tabelnya
+  // tetap "terisi" oleh karyawan lain.
   const sE: string[] = ['tanggal BETWEEN ? AND ?'];
   const aE: (string | number | null)[] = [filter.dari, filter.sampai];
   syaringToko('toko_id', filter.tokoId, sE, aE);
@@ -98,14 +132,19 @@ async function karyawanDalamCakupan(filter: FilterRekap, ex: Executor): Promise<
   const sJ: string[] = ['tanggal BETWEEN ? AND ?'];
   const aJ: (string | number | null)[] = [filter.dari, filter.sampai];
   syaringToko('toko_id', filter.tokoId, sJ, aJ);
+  // DRAFT dikecualikan: belum punya tanggal, jadi tidak pernah masuk periode mana pun.
+  const sG: string[] = ["status <> 'DRAFT'", 'tanggal BETWEEN ? AND ?'];
+  const aG: (string | number | null)[] = [filter.dari, filter.sampai];
+  syaringToko('toko_id', filter.tokoId, sG, aG);
   const res = await ex.execute({
     sql: `SELECT k.id AS karyawan_id, k.nama AS karyawan_nama, o.id AS toko_id, o.nama AS toko_nama FROM (
       SELECT karyawan_id, toko_id FROM absensi WHERE ${sE.join(' AND ')}
       UNION SELECT karyawan_id, toko_id FROM ketidakhadiran WHERE ${sT.join(' AND ')}
       UNION SELECT karyawan_id, toko_id FROM jadwal WHERE ${sJ.join(' AND ')}
+      UNION SELECT karyawan_id, toko_id FROM agenda_laporan WHERE ${sG.join(' AND ')}
     ) u JOIN karyawan k ON k.id = u.karyawan_id JOIN toko o ON o.id = u.toko_id
     ORDER BY k.nama ASC, o.nama ASC`,
-    args: [...aE, ...aT, ...aJ],
+    args: [...aE, ...aT, ...aJ, ...aG],
   });
   return res.rows as unknown as KaryawanToko[];
 }
@@ -165,6 +204,9 @@ export async function barisRingkasan(filter: FilterRekap, ex: Executor): Promise
       else hariTanpa++;
     }
 
+    // BR-G16: dua kolom aggregate agenda per karyawan per toko.
+    const agenda = await hitungAgendaPerKaryawan(k.karyawan_id, filter.dari, filter.sampai, filter.tokoId, ex);
+
     keluar.push(
       rekapKaryawan({
         karyawan_id: k.karyawan_id,
@@ -175,6 +217,8 @@ export async function barisRingkasan(filter: FilterRekap, ex: Executor): Promise
         hariIzin,
         hariTanpaKeterangan: hariTanpa,
         totalFinal,
+        agendaSelesai: agenda.selesai,
+        agendaDitolak: agenda.ditolak,
       }),
     );
   }
@@ -300,5 +344,10 @@ export async function susunRekap(filter: FilterRekap, ex: Executor) {
   const pemeriksaan = await periksaSyaratEkspor(filter, ex);
   const ringkasan = await barisRingkasan(filter, ex);
   const detail = await barisDetail(filter, ex);
-  return { pemeriksaan, ringkasan, detail };
+  // BR-G16: sheet "Detail Agenda". Quay dalam hasil yang sama supaya pratinjau dan
+  // ekspor tidak bisa melihat jumlah agenda yang berbeda (anti-B-19).
+  const detailAgenda = await barisDetailAgenda(filter.dari, filter.sampai, filter.tokoId, ex);
+  return { pemeriksaan, ringkasan, detail, detailAgenda };
 }
+
+export type { BarisDetailAgenda };

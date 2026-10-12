@@ -3,12 +3,14 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
+  CalendarCheckIcon,
   CalendarIcon,
   ClipboardCheckIcon,
   ClockIcon,
   FileSpreadsheetIcon,
   KeyRoundIcon,
   LayoutDashboardIcon,
+  ListChecksIcon,
   LockIcon,
   ScrollTextIcon,
   SettingsIcon,
@@ -24,11 +26,21 @@ import { SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
  * `menu.ts` adalah data murni yang diuji lewat JSON, dan referensi komponen
  * tidak bisa diserialisasi. Label yang tidak ada di peta tetap tampil tanpa
  * ikon — menu tidak boleh hilang hanya karena ikonnya lupa didaftarkan.
+ *
+ * Dipetakan juga diekspor supaya `tests/ui4-ikon.test.ts` bisa memeriksa
+ * SEMUA label dari `menuUntukPeran()` tanpa menyalin daftar ini ke tes.
+ *
+ * Ikon yang dipakai dua halaman berdekatan harus berbeda bentuk supaya tidak tertukar
+ * saat dibaca sekilas:
+ *   - Jadwal vs Agenda             : `CalendarIcon` vs `CalendarCheckIcon`
+ *   - Verifikasi Absensi vs Agenda : `ClipboardCheckIcon` vs `ListChecksIcon`
  */
-const IKON_MENU: Record<string, LucideIcon> = {
+export const IKON_MENU: Record<string, LucideIcon> = {
   Dashboard: LayoutDashboardIcon,
   'Verifikasi Absensi': ClipboardCheckIcon,
+  'Verifikasi Agenda': ListChecksIcon,
   Jadwal: CalendarIcon,
+  Agenda: CalendarCheckIcon,
   'Tandai Tidak Berangkat': UserXIcon,
   'Rekap & Ekspor': FileSpreadsheetIcon,
   Toko: StoreIcon,

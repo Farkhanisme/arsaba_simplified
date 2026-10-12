@@ -26,7 +26,7 @@ describe('halaman /admin/rekap benar-benar bisa dirender', () => {
       createElement(PanelRekap, {
         data: {
           filter: { dari: '2026-10-01', sampai: '2026-10-03', tokoId: 2 },
-          pemeriksaan: { boleh: false, jumlahMenunggu: 3, jumlahCheckinTerbuka: 2, peringatan: 0 },
+          pemeriksaan: { boleh: false, jumlahMenunggu: 3, jumlahCheckinTerbuka: 2, jumlahAgendaMenunggu: 0, peringatan: 0 },
           ringkasan: [],
         },
         mengunduh: false,
@@ -51,16 +51,16 @@ describe('halaman /admin/rekap benar-benar bisa dirender', () => {
       createElement(PanelRekap, {
         data: {
           filter: { dari: '2026-10-01', sampai: '2026-10-03', tokoId: null },
-          pemeriksaan: { boleh: true, jumlahMenunggu: 0, jumlahCheckinTerbuka: 0, peringatan: 1 },
+          pemeriksaan: { boleh: true, jumlahMenunggu: 0, jumlahCheckinTerbuka: 0, jumlahAgendaMenunggu: 0, peringatan: 1 },
           ringkasan: [
-            { karyawan_id: 1, karyawan_nama: 'A', toko_id: 1, toko_nama: 'T', hari_hadir: 0, hari_izin: 0, hari_tanpa_keterangan: 0, total_terlambat_final: 0 },
+            { karyawan_id: 1, karyawan_nama: 'A', toko_id: 1, toko_nama: 'T', hari_hadir: 0, hari_izin: 0, hari_tanpa_keterangan: 0, total_terlambat_final: 0, agenda_selesai: 0, agenda_ditolak: 0 },
           ],
         },
         mengunduh: false,
         onUnduh: () => undefined,
       }),
     );
-    expect(html).toContain('Semua absensi pada periode ini sudah diverifikasi.');
+    expect(html).toContain('Semua absensi dan agenda pada periode ini sudah diverifikasi.');
     expect(html).toContain('1 karyawan terjadwal tanpa absen dan tanpa penandaan');
     expect(html).not.toContain('Ekspor belum bisa dilakukan');
     // Peringatan saja -> tombol ekspor TETAP aktif (tanpa atribut disabled).
@@ -77,7 +77,7 @@ describe('halaman /admin/rekap benar-benar bisa dirender', () => {
       createElement(PanelRekap, {
         data: {
           filter: { dari: '2026-10-01', sampai: '2026-10-01', tokoId: null },
-          pemeriksaan: { boleh: true, jumlahMenunggu: 0, jumlahCheckinTerbuka: 0, peringatan: 0 },
+          pemeriksaan: { boleh: true, jumlahMenunggu: 0, jumlahCheckinTerbuka: 0, jumlahAgendaMenunggu: 0, peringatan: 0 },
           ringkasan: [],
         },
         mengunduh: false,

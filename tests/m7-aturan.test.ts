@@ -80,6 +80,10 @@ describe('aturan dashboard — hitungBelumAbsen dan kartuToko', () => {
 
   it('kartuToko menghitung orang dari Set', () => {
     const kartu = kartuToko(7, 'Toko X', new Set([1, 2, 3, 4, 5]), new Set([1, 2, 3]), new Set([3]), new Set([4]));
-    expect(kartu).toEqual({ toko_id: 7, toko_nama: 'Toko X', terjadwal: 5, sudah_absen: 3, terlambat: 1, belum_absen: 1 });
+    // Field agenda ikut dibandingkan (BR-G17). Status kosong -> semua nol.
+    expect(kartu).toEqual({
+      toko_id: 7, toko_nama: 'Toko X', terjadwal: 5, sudah_absen: 3, terlambat: 1, belum_absen: 1,
+      agenda: { menunggu: 0, selesai: 0, ditolak: 0 },
+    });
   });
 });

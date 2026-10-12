@@ -200,7 +200,7 @@ describe('M7 dashboard', () => {
     const res = await dashboardRoute(req('/api/admin/dashboard', { cookie: admin }));
     const data = (await res.json()).data as { kartu: { toko_nama: string; terjadwal: number; sudah_absen: number; terlambat: number; belum_absen: number }[] };
     const c = kartu(data, 'Toko C');
-    expect(c).toEqual({ toko_id: toko['Toko C']!, toko_nama: 'Toko C', terjadwal: 0, sudah_absen: 0, terlambat: 0, belum_absen: 0 });
+    expect(c).toEqual({ toko_id: toko['Toko C']!, toko_nama: 'Toko C', terjadwal: 0, sudah_absen: 0, terlambat: 0, belum_absen: 0, agenda: { menunggu: 0, selesai: 0, ditolak: 0 } });
   });
 
   it('kasus 1: final 30 tapi tidak terlambat sistem -> terlambat 0 untuknya', async () => {
@@ -218,7 +218,7 @@ describe('M7 dashboard', () => {
     const res = await dashboardRoute(req('/api/admin/dashboard', { cookie: admin }));
     const data = (await res.json()).data as { kartu: { toko_nama: string; terjadwal: number; sudah_absen: number; terlambat: number; belum_absen: number }[] };
     const a = kartu(data, 'Toko A');
-    expect(a).toEqual({ toko_id: toko['Toko A']!, toko_nama: 'Toko A', terjadwal: 6, sudah_absen: 4, terlambat: 2, belum_absen: 1 });
+    expect(a).toEqual({ toko_id: toko['Toko A']!, toko_nama: 'Toko A', terjadwal: 6, sudah_absen: 4, terlambat: 2, belum_absen: 1, agenda: { menunggu: 0, selesai: 0, ditolak: 0 } });
   });
 
   it('angka penuh per toko + bertanda tidak di kolom mana pun', async () => {
@@ -226,10 +226,10 @@ describe('M7 dashboard', () => {
     const data = (await res.json()).data as { kartu: { toko_nama: string; terjadwal: number; sudah_absen: number; terlambat: number; belum_absen: number }[] };
     // A: terjadwal {K1,K2,K3,K5,K6,K9}=6; sudah {K1,K2,K3,K9}=4 (K9 dihitung 1 walau 2 ci; K4 DITOLAK tak masuk);
     // terlambat {K2,K9}=2 (K1 selisih 3 + final 30 diabaikan); bertanda {K6} tak di kolom mana pun; belum = 6-4-1 = 1 (K5).
-    expect(kartu(data, 'Toko A')).toEqual({ toko_id: toko['Toko A']!, toko_nama: 'Toko A', terjadwal: 6, sudah_absen: 4, terlambat: 2, belum_absen: 1 });
+    expect(kartu(data, 'Toko A')).toEqual({ toko_id: toko['Toko A']!, toko_nama: 'Toko A', terjadwal: 6, sudah_absen: 4, terlambat: 2, belum_absen: 1, agenda: { menunggu: 0, selesai: 0, ditolak: 0 } });
     // B: terjadwal {K7,K10,K11,K12,K13,K14}=6; sudah {K7,K10,K11,K12,K13}=5; terlambat {K7,K10,K11,K12}=4
     // (K13 09:03 vs snapshot 09:00 = 3, bukan template 07:00); belum = 6-5-0 = 1 (K14).
-    expect(kartu(data, 'Toko B')).toEqual({ toko_id: toko['Toko B']!, toko_nama: 'Toko B', terjadwal: 6, sudah_absen: 5, terlambat: 4, belum_absen: 1 });
+    expect(kartu(data, 'Toko B')).toEqual({ toko_id: toko['Toko B']!, toko_nama: 'Toko B', terjadwal: 6, sudah_absen: 5, terlambat: 4, belum_absen: 1, agenda: { menunggu: 0, selesai: 0, ditolak: 0 } });
     // Hitung ORANG bukan event: K9 punya 2 check-in aktif tapi sudah_absen A tetap 4
     // (dibuktikan eksplisit: DISTINCT karyawan check-in aktif A = {K1,K2,K3,K9}).
     const db = getDb();
@@ -286,7 +286,7 @@ describe('M7 dashboard', () => {
     const kosong = await metrikPerToko('2000-01-01', db);
     expect(kosong.length).toBe(3);
     for (const k of kosong) {
-      expect(k).toEqual({ toko_id: k.toko_id, toko_nama: k.toko_nama, terjadwal: 0, sudah_absen: 0, terlambat: 0, belum_absen: 0 });
+      expect(k).toEqual({ toko_id: k.toko_id, toko_nama: k.toko_nama, terjadwal: 0, sudah_absen: 0, terlambat: 0, belum_absen: 0, agenda: { menunggu: 0, selesai: 0, ditolak: 0 } });
     }
     const res = await dashboardRoute(req('/api/admin/dashboard?tanggal=2000-01-01', { cookie: admin }));
     const data = (await res.json()).data as { tanggal: string; kartu: { toko_nama: string; terjadwal: number }[] };

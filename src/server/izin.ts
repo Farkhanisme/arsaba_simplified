@@ -8,6 +8,8 @@ export const IZIN_MATRIX: Record<string, Peran[]> = {
   koreksi: ['ADMIN', 'SUPER_ADMIN'],
   rekap: ['ADMIN', 'SUPER_ADMIN'],
   ekspor: ['ADMIN', 'SUPER_ADMIN'],
+  agenda: ['ADMIN', 'SUPER_ADMIN'],
+  verifikasi_agenda: ['ADMIN', 'SUPER_ADMIN'],
   master_toko: ['SUPER_ADMIN'],
   master_shift: ['SUPER_ADMIN'],
   master_karyawan: ['SUPER_ADMIN'],

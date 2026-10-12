@@ -37,6 +37,9 @@ Aplikasi web internal untuk mencatat absensi 26 karyawan di 10 toko. Karyawan ab
 10. Audit log (dicatat + dibaca Super Admin lewat UI).
 11. Pengaturan sistem (ambang terlambat).
 12. Ganti password akun sendiri oleh Admin dan Super Admin.
+13. **Agenda** (K-57 s.d. K-65): dibuat admin atau karyawan sendiri, di-assign ke satu karyawan /
+    satu toko / seluruh karyawan, dikerjakan karyawan lewat halaman yang sama dengan absen, lalu
+    diverifikasi admin. Agenda masuk rekap dan memblokir ekspor selama masih `MENUNGGU`.
 
 **Di luar cakupan:**
 
@@ -46,6 +49,8 @@ Aplikasi web internal untuk mencatat absensi 26 karyawan di 10 toko. Karyawan ab
 - Pengenalan wajah otomatis.
 - Aplikasi native mobile, multi-bahasa.
 - Cadangan (backup) foto di luar Telegram.
+- Batas jumlah agenda yang boleh dibuat satu karyawan dalam satu periode (tidak ada — lihat catatan).
+- Edit judul/keterangan agenda setelah pembuatan, dan hapus permanen agenda (K-62).
 - Fitur lain yang tidak tertulis di dokumen ini.
 
 ## 5. Kebutuhan fungsional (user story + acceptance criteria)
@@ -73,7 +78,27 @@ Aplikasi web internal untuk mencatat absensi 26 karyawan di 10 toko. Karyawan ab
 - Then tiap record menampilkan badge status; jika ditolak tampil alasannya dan tombol Check-in tersedia lagi sesuai batas.
 - Given tanggal ini sudah ditandai tidak berangkat, then absen **diblokir** dengan pesan yang mengarahkan menghubungi admin (K-31).
 
+**US-K5 Mengerjakan agenda.**
+- Given ada agenda yangditugaskan ke karyawan tersebut, then daftar agenda tampil di tab Agenda pada
+  halaman absen yang sama.
+- Given agenda wajib foto, then karyawan memotret foto before, dan "Simpan" menyimpan status
+  `DRAFT`; setelah dikerjakan, karyawan mengirim foto after lalu "Simpan" lagi → `MENUNGGU`.
+- Given agenda tidak wajib foto, then keterangan opsional sudah cukup untuk menyelesaikan.
+- Given karyawan membuat agenda sendiri, then judul dan keterangan opsional diisi, foto before diambil,
+  dan status berjalan `DRAFT` → `MENUNGGU` dengan cara yang sama.
+- Then tiap laporan menampilkan status; yang ditolak menampilkan alasannya dan bisa diulang.
+- Draft tidak pernah terlihat admin dan tidak memblokir apa pun.
+
 ### 5.2 Admin
+
+**US-A9 Agenda.**
+- Buat agenda: judul, keterangan opsional, pilihan wajib foto before–after, tanggal target opsional.
+- Assign ke satu karyawan / satu toko / seluruh karyawan. Penerima dihitung dari penempatan saat ini.
+- Daftar tujuan bisa diubah dan agenda bisa dibatalkan (wajib alasan) selagi masih `AKTIF`.
+- Judul/keterangan tidak bisa diedit setelah pembuatan; tidak ada hapus permanen (K-62).
+- Verifikasi laporan agenda: setujui / tolak (tolak wajib alasan). Menolak tidak membakar percobaan —
+  karyawan boleh mengulang. Halaman verifikasi agenda terpisah dari verifikasi absensi.
+- Laporan agenda `MENUNGGU` memblokir ekspor pada periode yang sama (K-63).
 
 **US-A1 Login.** Given username/password benar, then masuk dashboard. Akun nonaktif atau salah gagal dengan pesan generik.
 

@@ -26,8 +26,10 @@ export function menuUntukPeran(peran: Peran): KelompokMenu[] {
     item: [
       { label: 'Dashboard', href: '/admin' },
       { label: 'Verifikasi Absensi', href: '/admin/verifikasi' },
+      { label: 'Verifikasi Agenda', href: '/admin/verifikasi-agenda' },
       { label: 'Jadwal', href: '/admin/jadwal' },
       { label: 'Tandai Tidak Berangkat', href: '/admin/tidak-berangkat' },
+      { label: 'Agenda', href: '/admin/agenda' },
       { label: 'Rekap & Ekspor', href: '/admin/rekap' },
     ],
   };

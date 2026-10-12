@@ -8,6 +8,7 @@
 import type { Executor } from '../audit';
 import { eventAktif } from '../aturan/absensi';
 import { kartuToko, terlambatSistem, type KartuToko } from '../aturan/dashboard';
+import { hitungMetrikAgenda } from '../aturan/laporan';
 import type { ItemHitungN, SlotAcuan } from '../aturan/keterlambatan';
 import { bacaAmbang } from './pengaturan';
 
@@ -97,6 +98,21 @@ export async function metrikPerToko(tanggal: string, ex: Executor): Promise<Kart
     if (terlambat) terlambatGlobal.add(karyawanId);
   }
 
+  // BR-G17: status laporan agenda per toko pada tanggal itu. Satu query untuk
+  // semua toko (bukan 26 query) — DRAFT sengaja ikut terbaca lalu diabaikan oleh
+  // hitungMetrikAgenda, jadi daftar admin dan dashboard tidak bisa berbeda.
+  const agRes = await ex.execute({
+    sql: 'SELECT toko_id, status FROM agenda_laporan WHERE tanggal = ?',
+    args: [tanggal],
+  });
+  const agPerToko = new Map<number, string[]>();
+  for (const r of agRes.rows as unknown as { toko_id: number | null; status: string }[]) {
+    if (r.toko_id === null) continue;
+    const s = agPerToko.get(r.toko_id) ?? [];
+    s.push(r.status);
+    agPerToko.set(r.toko_id, s);
+  }
+
   return daftarToko.map((t) =>
     kartuToko(
       t.id,
@@ -105,8 +121,18 @@ export async function metrikPerToko(tanggal: string, ex: Executor): Promise<Kart
       sudahPerToko.get(t.id) ?? new Set<number>(),
       new Set([...(sudahPerToko.get(t.id) ?? [])].filter((k) => terlambatGlobal.has(k))),
       tandaPerToko.get(t.id) ?? new Set<number>(),
+      agPerToko.get(t.id) ?? [],
     ),
   );
+}
+
+/** Antrean verifikasi agenda: laporan MENUNGGU dari SEMUA tanggal (BR-G17). */
+export async function antreanVerifikasiAgenda(ex: Executor): Promise<number> {
+  const res = await ex.execute({
+    sql: "SELECT COUNT(*) AS c FROM agenda_laporan WHERE status = 'MENUNGGU'",
+    args: [],
+  });
+  return Number((res.rows[0] as Record<string, unknown>)['c']);
 }
 
 /** Antrean verifikasi: event MENUNGGU dari SEMUA tanggal. */
@@ -124,6 +150,18 @@ export async function angkaBanding(tanggal: string, ex: Executor): Promise<Kartu
   const ambang = await bacaAmbang(ex);
   const tokoRes = await ex.execute({ sql: 'SELECT id, nama FROM toko WHERE aktif = 1 ORDER BY nama ASC', args: [] });
   const daftarToko = tokoRes.rows as unknown as { id: number; nama: string }[];
+  const agRes = await ex.execute({
+    sql: 'SELECT toko_id, status FROM agenda_laporan WHERE tanggal = ?',
+    args: [tanggal],
+  });
+  const agPerToko = new Map<number, string[]>();
+  for (const r of agRes.rows as unknown as { toko_id: number | null; status: string }[]) {
+    if (r.toko_id === null) continue;
+    const s = agPerToko.get(r.toko_id) ?? [];
+    s.push(r.status);
+    agPerToko.set(r.toko_id, s);
+  }
+
   const keluar: KartuToko[] = [];
 
   for (const t of daftarToko) {
@@ -167,7 +205,7 @@ export async function angkaBanding(tanggal: string, ex: Executor): Promise<Kartu
     });
     const bertanda = new Set((td.rows as unknown as { karyawan_id: number }[]).map((r) => r.karyawan_id));
 
-    keluar.push(kartuToko(t.id, t.nama, terjadwal, sudahAbsen, terlambat, bertanda));
+    keluar.push(kartuToko(t.id, t.nama, terjadwal, sudahAbsen, terlambat, bertanda, agPerToko.get(t.id) ?? []));
   }
   return keluar;
 }

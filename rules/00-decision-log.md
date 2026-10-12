@@ -95,6 +95,29 @@ Ketika pemilik menyetujui sebuah `[USULAN]`, tag-nya dihapus di semua dokumen da
 | K-54 | `keterlambatan_final_menit` dibatasi **0 s.d. 1440 menit** (24 jam). Di luar itu ditolak di server dengan pesan jelas. Pemeriksaan WAJIB di server, bukan hanya di UI. |
 | K-55 | Batas **100 karyawan per operasi isi massal** jadwal. Dengan 26 karyawan dan 10 toko, batas ini hanya perlindungan beban (satu operasi penuh 26 karyawan × 31 hari = 806 sel dalam satu transaksi), bukan fitur. |
 | K-56 | Batas **100 karyawan per operasi tandai tidak berangkat**. Sama seperti K-55: dengan 26 karyawan, batas ini hanya perlindungan beban transaksi, bukan fitur. Rentang tanggal tidak dibatasi (satu tanggal atau rentang bebas, BR-X5). |
+| K-57 | **Fitur Agenda** masuk cakupan. Admin **dan** Super Admin boleh membuat agenda serta meng-assign. Pembuat memilih **wajib foto before–after** atau tidak. **Tanggal target opsional** (boleh kosong). |
+| K-58 | Tiga cakupan penerima: **satu karyawan**, **satu toko**, atau **seluruh karyawan**. Penerima **dihitung ulang dari penempatan saat ini** (bukan snapshot) — aturan lengkap di `rules/02` BR-G2. |
+| K-59 | Alur karyawan. Agenda wajib foto → foto before → kerjakan → foto after. Agenda tanpa foto → keterangan opsional saja. Agenda **yang dibuat karyawan sendiri selalu wajib foto** (tidak ada sakelar). |
+| K-60 | Status laporan agenda: `DRAFT` → `MENUNGGU` → `DISETUJUI` \| `DITOLAK`. Draft menyimpan foto before dan **tidak pernah terlihat oleh admin**. |
+| K-61 | **Semua** laporan agenda — termasuk agenda buatan karyawan sendiri — masuk antrean verifikasi admin. `DITOLAK` **wajib alasan** dan **boleh diulang** sebagai percobaan baru (percobaan pertama tidak hangus). |
+| K-62 | Admin boleh **membatalkan** agenda (`DIBATALKAN`) dan **mengubah daftar penerima** selagi agenda masih `AKTIF`. **Tidak ada hapus permanen** dan **judul/keterangan tidak bisa diedit** setelah pembuatan. Daftar penerima agenda buatan karyawan sendiri **tidak boleh** diubah. |
+| K-63 | Laporan agenda masuk periode = **tanggal submit (foto after)**. **Hanya laporan `MENUNGGU`** yang memblokir ekspor. Ini **mengubah K-13**: syarat ekspor jadi tiga. |
+| K-64 | Agenda masuk rekap Excel: sheet baru **`Detail Agenda`** + kolom aggregate di sheet `Ringkasan`. Dashboard menampilkan metrik agenda per toko. |
+| K-65 | **K-32 berlaku untuk agenda**: verifikasi laporan agenda pada periode yang sudah diekspor hanya Super Admin. Sebaliknya, **BR-A9 (tidak berangkat) TIDAK memblokir** pengerjaan agenda — pemilik memutuskan ini. |
+
+> **Catatan K-58 (konsekuensi yang sudah disadari pemilik).** Karena penerima dihitung ulang,
+> memindahkan karyawan (BR-P2) setelah agenda dibuat **berpengaruh pada agenda**: karyawan yang
+> dipindah ke toko lain **lepas** dari agenda toko itu, dan karyawan yang baru masuk ke toko itu
+> **langsung mendapat** agenda yang belum dikerjakan. Ini berbeda dari snapshot BR-A12/BR-P4 yang
+> dipakai absensi, dan disengaja. Konsekuensi kedua: rekap agenda pada periode yang sama bisa
+> berisi penerima berbeda tergantung kapan file dibuat. Keduanya disengaja — jangan
+> "diperbaiki" menjadi snapshot tanpa keputusan baru.
+
+> **Catatan K-63 (K-13 berubah).** K-13 semula hanya menyebut event `MENUNGGU` dan check-in
+> terbuka. K-63 menambah syarat ketiga: laporan agenda `MENUNGGU` pada rentang+toko yang sama.
+> Keputusan "agenda ditugaskan tapi belum dikerjakan" **sengaja tidak** memblokir ekspor,
+> diperlakukan seperti K-33 (peringatan saja) — alasannya, agenda tanpa tanggal target bisa
+> menggantung ekspor selamanya.
 
 ## B. Usulan teknis (disetujui — K-40)
 

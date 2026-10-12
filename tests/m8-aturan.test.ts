@@ -53,6 +53,9 @@ describe('aturan rekap — rekapKaryawan memakai FINAL (BR-L3/BR-R4)', () => {
         hariIzin: 1,
         hariTanpaKeterangan: 0,
         totalFinal: 45,
+        // BR-G16: kolom agenda dihitung dari LAPORAN, bukan hari.
+        agendaSelesai: 3,
+        agendaDitolak: 1,
       }),
     ).toEqual({
       karyawan_id: 1,
@@ -63,6 +66,8 @@ describe('aturan rekap — rekapKaryawan memakai FINAL (BR-L3/BR-R4)', () => {
       hari_izin: 1,
       hari_tanpa_keterangan: 0,
       total_terlambat_final: 45,
+      agenda_selesai: 3,
+      agenda_ditolak: 1,
     });
   });
 });
