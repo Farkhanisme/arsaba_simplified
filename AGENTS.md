@@ -118,6 +118,82 @@ dokumen; tugas agen adalah **menerjemahkan dokumen menjadi kode tanpa mengarang 
   `komponen.tsx` yang bisa diuji. 622 tes hijau di tiga timezone. Yang diklaim agent
   **semua terbukti benar** — tidak ada tes yang dilemahkan, tidak ada aturan bisnis
   yang berubah, tidak ada endpoint yang berubah.
+- **UI-5 Batch A selesai (2026-10-12): menutup 4 celah `rules/05` yang belum
+  dikerjakan.** Batch ini tidak menambah fitur di luar `rules/05`.
+  1. **`a/[token]/not-found.tsx`** — 4 inline style → `Card` + token shadcn.
+     Penyebabnya bug yang sama seperti BUG-UI-07: panel tetap terang saat mode
+     gelap aktif. Teksnya dikunci tes lain, tidak boleh diubah.
+  2. **`src/app/not-found.tsx`** (baru) — sebelumnya Next.js memakai 404 bawaannya
+     yang **berbahasa Inggris**, melanggar K-24. Sengaja netral: `/admin/apa-saja`
+     dan `/apa-saja` memberi pesan yang sama supaya struktur admin tidak bisa dipetakan.
+  3. **`src/app/admin/error.tsx` + `src/app/global-error.tsx`** (baru) — sebelumnya
+     nol boundary error; satu error saja membuat Super Admin melihat halaman error
+     Next.js tanpa jalan keluar. Isi error **tidak pernah** ditampilkan ke layar
+     (bisa memuat nama kolom/SQL); hanya `digest` yang ditampilkan.
+     `global-error` wajib merender `<html>`-nya sendiri **dan meng-import
+     `globals.css` sendiri** — layout root yang biasanya mengimpornya ikut sudah gagal.
+  4. **Font halaman karyawan** — `text-xs` (12px) dihapus seluruhnya dari `/a/[token]/`,
+     termasuk di alasan penolakan, keterangan agenda, dan syarat foto. Teks isi → 16px.
+     Keputusan cakupannya dicatat di `rules/OPEN_QUESTIONS.md` **B-22** (metadata 14px
+     masih menunggu pemilik).
+  Bonus: `style={{ background: '#000' }}` di `<video>` pratinjau kamera → `bg-black`.
+  Inline style di `src/app/` kini **1**, dan itu hanya `page.tsx:5` (BUG-UI-01,
+  di luar cakupan Batch A).
+- **Dua jebakan tes baru dari UI-5, keduanya hampir lolos ke saya:**
+  **(a)** `text-xs` muncul di HTML hasil render karena **komponen `Badge` shadcn
+  sendiri** memuatnya di kelas dasar — assertion `not.toMatch(/text-xs/)` terhadap
+  seluruh HTML akan selalu gagal dan itu BUKAN bug aplikasi. Persis jebakan
+  `disabled:` yang sudah tercatat di AGENTS.md. Yang benar: periksa elemen yang
+  teksnya dibaca. **(b)** Sapuan sumber membaca **komentarnya sendiri** —
+  docblock `page.tsx` menjelaskan "text-xs dilarang", jadi dokumentasi yang jujur
+  menggagalkan tesnya sendiri. Komentar harus dibuang sebelum menyapu.
+  Pelajaran lebih dalam: **kelas dasar `Card` shadcn memuat `text-sm`**, jadi teks
+  di dalam `Card` tanpa ukuran eksplisit turun ke 14px diam-diam.
+- **Kesalahan mutasi yang saya buat sendiri (dicatat karena bisa terulang):** mutasi
+  pertama untuk `global-error` menghasilkan **syntax error**, bukan kegagalan tes —
+  dan saya hampir menghitungnya sebagai "tes tidak menangkap". Mutasi yang rusak
+  bukan bukti. Mutasi harus valid, dan hasilnya harus dibaca per-ekspektasi.
+- **Yang TIDAK bisa dibuktikan tes, dan dinyatakan terbuka:** `globals.css` benar-benar
+  termuat di `global-error`. Vitest men-stub CSS, jadi `renderToStaticMarkup` tidak
+  pernah bisa memastikannya. Pagar yang dipasang hanya memeriksa **keberadaan
+  import**, bukan hasil render — dan itu dinyatakan terbuka di berkasnya sendiri.
+- **Tiga mutasi pertama saya semuanya LALU dan itu informasi berguna, bukan
+  kegagalan yang bisa disembunyikan.** Melihat `text-xs` di HTML membuat saya
+  tambah assertion yang terlalu ketat; menghapus 404 membuat tes gagal **saat import**
+  (bukan saat assertion), jadi filter `grep -E "×"` saya menutupinya dan hampir
+  saya laporkan sebagai "tidak tertangkap"; menghapus `<html>` menghasilkan
+  **syntax error**, bukan kegagalan tes. Pelajaran: mutasi harus **valid** dan
+  hasilnya harus dibaca **per-ekspektasi** — "file gagal import" ≠ "assertion gagal".
+- **`tests/ui3` punya pengecualian yang harus DIHAPUS, bukan ditambahkan.**Tes lama
+  justru **memindai** keberadaan `style={{ background: '#000' }}` di `<video>`
+  (`toBe(1)`). Pengecualian itu tidak perlu: `bg-black` hasil visualnya sama persis
+  dan lolos sapuan warna literal. Sekarang syaratnya `toEqual([])`.
+  **Pola yang sama berulang di dua tes** — `ui3` dan `ui5-ukuran-font` sama-sama
+  melonggarkan syarat sebelum memeriksa. Melonggarkan tes supaya lulus itu melonggarkan
+  pelarasan, bukan hanya tesnya.
+- **Temuan UI-5B yang membatalkan temuan saya sendiri (2026-10-12).** Saya
+  melaporkan "0 `overflow-x` di admin, tabel dipampihkan di tablet". Itu **SALAH**:
+  saya hanya menyapu `src/app/`, sedangkan kelasnya ada di komponen bersama
+  `src/components/ui/table.tsx` yang membungkus setiap tabel dengan
+  `relative w-full overflow-x-auto`. Jadi gulir horizontal **sudah ada** sejak awal.
+  **Pelajaran: sapuan "cukupkan tidak ada" harus selalu menyapu komponen bersama
+  `src/components/`, bukan hanya `src/app/`.** Kesimpulan ini sudah dikoreksi di
+  baris UI-5B pada tabel milestone di bawah.
+- **Masalah teknis sticky header yang ditemukan setelah itu (belum dikerjakan).**
+  `overflow-x: auto` + `overflow-y: visible` membuat `overflow-y` **dihitung jadi
+  `auto`** — jadi wrapper `Table` adalah scroll container di **kedua sumbu**.
+  `position: sticky; top: 0` pada `<th>` akan lengket ke **wrapper itu**, bukan ke
+  halaman; dan karena wrapper tidak punya `max-h`, ia tidak pernah scroll
+  vertikal. Artinya **menempelkan `sticky top-0` pada `TableHead` saja tidak
+  menghasilkan apa pun** — perubahan yang terlihat benar di diff dan diam-diam
+  tidak berfungsi. Butuh `max-h` pada wrapper (mengubahnya jadi kotak scroll
+  sendiri) ATAU melepas `overflow-x` dari wrapper (mengorbankan gulir horizontal).
+  Keduanya punya konsekuensi berbeda dan **memerlukan keputusan pemilik**.
+- **Urutan diagnosis waktu `test:tz` gagal.** Kalau tes gagal di ketiga timezone
+  sekaligus (`UTC`/`Asia/Jakarta`/`America/New_York`), itu hampir selalu **bukan**
+  bug timezone — itu regresi biasa yang muncul di mana-mana. Jalankan satu timezone
+  saja dulu, baca assertion yang gagal, baru putuskan.
+  (Bug asli timezone — seperti B-13 — gagal di **sebagian** timezone, bukan semua.)
 - **Audit menemukan 4 celah tes yang tidak diketahui agent** — dipindah ke M9 dengan
   cara reproduksinya di **`rules/19-catatan-m9.md`** (M9-01 s.d. M9-05 + B-20).
   Pelajarannya: 10 mutasi pilihan agent semuanya lulus, tapi 4 mutasi **yang dipilih
@@ -136,6 +212,55 @@ dokumen; tugas agen adalah **menerjemahkan dokumen menjadi kode tanpa mengarang 
   **Risiko terbesar M9 adalah CSP:** `/a/[token]` memakai `getUserMedia`, jadi CSP yang
   salah akan mematikan halaman karyawan untuk 26 orang. Syarat mutlak:
   `git diff --stat src/app/a/` kosong, dan kamera dibuktikan **di browser**, bukan curl.
+- **M12–M14 selesai (2026-10-08): fitur Agenda lengkap, 942 tes hijau di tiga timezone.**
+  `rules/00` K-57..K-65, `rules/02` §18 (BR-G1..BR-G20). Berkas baru:
+  `server/aturan/laporan.ts` (fungsi murni alur draft/submit/verifikasi),
+  `server/repo/agenda-laporan.ts`, `server/repo/agenda-pribadi.ts`,
+  `server/agenda-info.ts`, tab `src/app/a/[token]/TabsHalamanClient.tsx` +
+  `AgendaClient.tsx`, `/admin/verifikasi-agenda`, dan 6 route baru
+  (`/api/agenda/{info,laporan,buat}`, `/api/admin/verifikasi-agenda{,/[id]}`,
+  `/api/foto/agenda/[id]`).
+  **Empat bug nyata yang ketahuan saat M12–M14** — semua karena tes, tidak karena
+  berjalan dan terlihat rusak:
+  1. **`await` hilang pada `periksaDraft()`** → route tetap mengunggah foto ke
+     Telegram padahal aturannya sudah menolak, jadi setiap penolakan meninggalkan
+     foto yatim di grup. Tanpa `await`, check-nya jadi promise yang tidak pernah ditunggu.
+     Ditemukan karena tes menghitung jumlah panggilan stub fetch, bukan karena error.
+  2. **`agenda_laporan.tanggal` semula `NOT NULL`** → draft tidak bisa tersimpan
+     sama sekali. Kolomnya harus NULL-able; aturan "non-draft wajib punya tanggal"
+     pindah ke `CHECK`. Pelajaran: **kolom yang nilainya baru diketahui saat submit
+     tidak boleh NOT NULL sejak awal.**
+  3. **`CHECK status='DRAFT' OR sesudah_file_id IS NOT NULL`** → agenda `wajib_foto=0`
+     (BR-G8) tidak punya foto sama sekali, jadi tidak bisa pernah MENUNGGU.
+     Aturan itu lintas-tabel ⇒ **harus trigger**, bukan CHECK (sudah ditulis begitu
+     di `rules/04` §6a, tapi belum ada yang mengaitkannya dengan kasus tanpa-foto).
+  4. **`karyawanDalamCakupan()` tidak meng-UNION `agenda_laporan`** → karyawan yang
+     hanya mengerjakan agenda tidak pernah muncul di sheet `Ringkasan`, jadi kolom
+     Agenda Selesai/Ditolak selalu 0 untuk dia dan tidak ketahuan karena tabel tetap
+     "terisi" karyawan lain.
+  **Dua jebakan tes yang terperangkap:**
+  **(a)** Stub `fetch` Telegram yang mengecek `String(init.body).includes('sendPhoto')`
+     — `String(FormData)` = `"[object FormData]"`, jadi **tidak pernah** kena dan
+     semua tes gagal 502. URL harus yang dicek.
+  **(b)** Ekspor memakai `toko_id: null` = semua toko, dan `sudahDiekspor()` membaca
+     itu sebagai "semua toko terkunci" (K-32). Maka tes verifikasi yang memakai
+     **tanggal yang sama** dengan tes ekspor gagal 403 karena urutan, bukan karena
+     bug. Perbaikan: **satu toko per skenario + tanggal lampau untuk tes K-32.**
+- **Celah tes ikon sidebar ketahuan 2026-10-09 (menu Agenda & Verifikasi Agenda tanpa ikon).**
+  `tautan-menu.tsx` merender ikon HANYA kalau label ada di `IKON_MENU`, jadi menu baru
+  yang labelnya lupa didaftarkan tampil polos — bukan error, bukan komponen rusak.
+  Tes lama (`ui4-ikon.test.ts`) hanya menguji `Dashboard` + `Jadwal`, dan ada tes yang
+  justru menyatakan "label tak dikenal → tampil tanpa ikon" itu benar. Pola yang sama
+  seperti temuan audit M9: **tes menguji yang sudah ada, bukan yang baru ditambah.**
+  Pagar sekarang: `IKON_MENU` diekspor, dan ada tes yang menarik daftar label dari
+  `menuUntukPeran()` sendiri — jadi menu berikutnya yang lupa ikon akan gagal sendiri,
+  tanpa perlu tes baru tiap kali. Ikon berdekatan **wajib berbeda bentuk**
+  (Jadwal `CalendarIcon` vs Agenda `CalendarCheckIcon`; Verifikasi Absensi
+  `ClipboardCheckIcon` vs Verifikasi Agenda `ListChecksIcon`) — ada tesnya.
+- **Keputusan yang paling mudah dilanggar di Agenda: penerima TIDAK dibekukan**
+  (K-58, BR-G2). Memindahkan karyawan diam-diam mengubah siapa yang punya agenda,
+  dan ini pilihan pemilik — jangan "diperbaiki" jadi snapshot tanpa keputusan baru.
+  **Mulai M14, K-13 berubah makna** (syarat ekspor jadi tiga) — lihat catatan K-63.
 - **M9 selesai dan diaudit independen (2026-10-03).** 664 tes hijau di tiga timezone.
   Yang diklaim agent **semua terbukti benar** — termasuk pengakuan sendiri soal kode mati
   dan penyimpangan. Terverifikasi: `src/app/a/` `guard.ts` `waktu.ts` `migrations/` kosong ·
@@ -225,6 +350,8 @@ dokumen; tugas agen adalah **menerjemahkan dokumen menjadi kode tanpa mengarang 
    `rules/16-agent-prompt-m8.md` (M8), `rules/17-agent-prompt-ui1.md` (UI-1),
    `rules/18-agent-prompt-ui2.md` (UI-2), `rules/20-agent-prompt-m9.md` (M9),
    `rules/22-agent-prompt-m10.md` (M10).
+   **Agenda tidak memakai file prompt** — M11–M14 dikerjakan langsung dari K-57 s.d.
+   K-65 di `rules/00` dan BR-G1..BR-G20 di `rules/02` §18.
    Catatan utang kerja: `rules/19-catatan-m9.md` (M9), `rules/21-catatan-m10.md` (M10).
 2. Mekanisme tag (legenda di `00`) tetap berlaku untuk pertanyaan **baru**: `[KEPUTUSAN]` boleh,
    `[USULAN]` boleh tapi tandai untuk ditinjau, `[BELUM DIPUTUSKAN]` berarti **berhenti** — jangan
@@ -278,6 +405,12 @@ Tidak ada yang terblokir — kolom keputusan menunjukkan keputusan yang dipakai.
 | UI-2 | Redesign 12 halaman admin sisanya | — | **prompt siap** (`rules/18`) |
 | M9 | Audit log UI, hardening, aksesibilitas, QA menyeluruh | — | **SELESAI** 2026-10-03 · 664 tes |
 | M10 | Header keamanan `/` dan `/login`, `unsafe-eval` di produksi, kode mati | `rules/03` §9.7 | **prompt siap** (`rules/22`) · 3 dari 4 utang kerja |
+| M11 | **Agenda — sisi admin**: K-57, K-58, K-62 | K-57, K-58, K-62 | **SELESAI** 2026-10-08 |
+| M12 | Agenda — sisi karyawan (tab `/a/[token]`, kamera before/after, draft) | K-59, K-60 | **SELESAI** 2026-10-08 |
+| M13 | Agenda — verifikasi admin + penguncian periode terekspor | K-61, K-65 | **SELESAI** 2026-10-08 |
+| M14 | Agenda — rekap Excel (sheet `Detail Agenda`), blokir ekspor, dashboard | K-63, K-64 | **SELESAI** 2026-10-08 · 942 tes |
+| UI-5A | **Batch A — 4 celah `rules/05`**: not-found karyawan, 404 root, `error.tsx` + `global-error.tsx`, font ≥16px karyawan | `rules/05` §1.4, §2, K-24 | **SELESAI** 2026-10-12 · 972 tes |
+| UI-5B | 8 tabel tanpa header lengket, 8 halaman tanpa paginasi, halaman akar versi M0 | `rules/05` §2, §6 | belum (menunggu) |
 
 ## Yang paling mudah salah
 
@@ -435,3 +568,13 @@ itu normal, bukan kerusakan. Detail di `rules/NOTES.md` §1a.
 Bertanya lebih murah daripada membangun ulang. Untuk apa pun yang memengaruhi aturan bisnis,
 struktur data, atau perilaku yang terlihat pengguna dan tidak tertulis di dokumen: **berhenti dan
 tanyakan.**
+
+<!-- BEGIN:nextjs-agent-rules -->
+
+# This is NOT the Next.js you know
+
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
+<!-- END:nextjs-agent-rules -->

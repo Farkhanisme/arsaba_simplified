@@ -883,3 +883,130 @@ halamannya komponen klien (`onSubmit` fetch + `router.push`). Tanpa
 rusak tanpa error server. Dibuktikan lewat inventarisasi `curl` (13 script src
 0 non-self di 12 halaman audit M9; 3 inline di /login) + login curl → sesi →
 `/admin` 200 di server produksi.
+
+---
+
+## 18. BUG-CSP-01 — direktif yang hilang diam-diam jatuh ke `default-src` (2026-10-12)
+
+**Gejala.** Di `next dev`, halaman `/` memberi dua gejala yang tidak jelas
+hubungannya:
+
+1. React: `A tree hydrated but some attributes of the server rendered HTML
+   didn't match` — diff-nya persis menunjuk `<main style={{ padding: 24,
+   fontFamily: "system-ui", maxWidth: 640 }}>` di `src/app/page.tsx`.
+2. Logo dev-tools Next.js (indikator di pojok bawah) **tidak muncul sama
+   sekali**, padahal 14 `<script src>` semuanya termuat dan tidak error.
+
+**Akar masalah.** `cspMasuk` di `next.config.mjs` hanya punya `default-src`,
+`script-src`, `object-src`, `base-uri`, `form-action`, `frame-ancestors`.
+Tidak ada `style-src`, `img-src`, `font-src`, `connect-src` — dan
+**`default-src` adalah nilai cadangan semua fetch directive yang tidak
+disebut**.
+
+### Rantai fallback — sudah diverifikasi ke spesifikasi, bukan dari ingatan
+
+**W3C CSP3 §6.8.3 "Get fetch directive fallback list"** (Working Draft
+16 September 2026), kutipan harfiah:
+
+```
+Switch on directive name:
+  "script-src-elem" Return << "script-src-elem", "script-src", "default-src" >>.
+  "script-src-attr" Return << "script-src-attr", "script-src", "default-src" >>.
+  "style-src-elem"  Return << "style-src-elem", "style-src", "default-src" >>.
+  "style-src-attr"  Return << "style-src-attr", "style-src", "default-src" >>.
+  "connect-src"     Return << "connect-src", "default-src" >>.
+```
+
+Dan **§6.8.2 "Get the effective directive for inline checks"** memetakan tipe
+inline ke direktifnya: `"style"` -> `style-src-elem`, `"style attribute"` ->
+`style-src-attr`.
+
+Jadi untuk atribut `style="..."` rantainya persis:
+
+```
+style-src-attr  ->  style-src  ->  default-src
+```
+
+Karena `cspMasuk` tidak punya `style-src` maupun `style-src-attr`, yang
+berpola adalah `default-src 'self'` — tanpa `'unsafe-inline'`.
+
+Sumber: https://www.w3.org/TR/CSP3/#directive-fallback-list
+(diperiksa 2026-10-12; versi yang dipakai:
+https://www.w3.org/TR/2026/WD-CSP3-20260916/)
+
+MDN menegaskan hal yang sama dari sisi lain:
+
+> **`default-src` fallback — Yes.** If this directive is absent, the user
+> agent will look for the `default-src` directive.
+
+> Inline style attributes are also blocked:
+> `<div style="display:none">Foo</div>`
+
+Sumber:
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Content-Security-Policy/style-src
+
+### Dua gejala itu memang satu sebab — dibuktikan dari bundle, bukan ditebak
+
+- Gejala (1): `curl` ke `/` memang mengembalikan
+  `<main style="padding:24px;font-family:system-ui;max-width:640px`, jadi
+  HTML server benar. Yang hilang adalah penerapannya.
+- Gejala (2): bundle `next-devtools` yang dilayani dev server memuat
+  `createElement("style")` **3 kali** — yaitu `<style>` yang disuntik ke
+  document. `<style>` juga diatur oleh rantai `style-src`, jadi ketiganya
+  diblokir dan overlay tidak pernah punya CSS: logo tidak terlihat.
+
+**Catatan yang mudah disalahartikan.** MDN juga menulis bahwa penulisan lewat
+properti CSSOM **tidak** diblokir:
+
+> However, styles properties that are set directly on the element's `style`
+> property will not be blocked — `document.querySelector("div").style.display = "none";`
+
+Bundle dev-tools banyak memakai `.style.display`, `.style.pointerEvents`,
+`.style.removeProperty` — semuanya lolos. Yang diblokir hanya `<style>` yang
+disuntik dan atribut `style="..."`. Kalau nanti ada yang menyimpulkan "CSSOM
+diblokir juga", itu keliru.
+
+### Pembeda yang memastikan ini soal CSP, bukan soal React
+
+`/admin/:path*` **sudah sejak awal** punya keempat direktif itu (blok admin di
+`next.config.mjs`). Halaman admin tidak pernah mengalami gejala mana pun, dan
+tidak ada satu pun inline style yang tersisa di sana — UI-2 sudah
+memindahkannya ke `komponen.tsx`. `/` dan `/login` punya CSP ketat tanpa
+empat direktif itu, dan `/` adalah satu-satunya halaman yang masih memakai
+inline style. Pola itu tidak mungkin terjadi kalau penyebabnya React.
+
+### Perbaikan
+
+Keempat direktif ditambahkan **hanya saat `NODE_ENV !== 'production'`**,
+lewat spread kondisional di dalam array `cspMasuk`. Penalarannya sama persis
+dengan `unsafe-eval` di §17: yang bocor hanya ke dev server lokal.
+
+Byte CSP produksi **tidak berubah sama sekali** — dibuktikan dengan memanggil
+fungsi `headers()` sungguhan pada kedua mode:
+
+| mode | `/` dan `/login` |
+|---|---|
+| production | `default-src 'self'; script-src 'self' 'unsafe-inline'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'` |
+| development | sama, ditambah `style-src 'self' 'unsafe-inline'`, `img-src 'self' data: blob:`, `font-src 'self' data:`, `connect-src 'self'` |
+
+`/a/:path*` tetap **tanpa CSP sama sekali** di kedua mode — satu direktif
+salah akan mematikan `getUserMedia` untuk 26 karyawan.
+
+`style-src 'unsafe-inline'` memang mengurangi kekuatan CSP, dan itu tradeoff
+yang nyata. Alasannya diterima di sini: risikonya adalah eksfiltrasi data lewat
+CSS, yang tidak berlaku di aplikasi ini — CSS-nya statis dan tidak ada input
+pengguna yang masuk ke selector. Alternatif yang lebih ketat (nonce per request)
+tidak layak untuk CSP yang hanya berlaku di dev.
+
+### Pelajaran yang lebih luas
+
+**Menulis CSP dengan direktif yang terpotong bukan berarti CSP-nya longgar —
+artinya CSP-nya lebih ketat dari yang dimaksud.** Tidak ada error, tidak ada
+warning, tidak ada 500. Hanya berupa halaman yang diam-diam kehilangan gaya,
+dan indikator developer yang tidak muncul. Kalau sebuah policy "berat"
+bikin fitur tidak muncul, cek dulu apakah direktifnya benar-benar ada, bukan
+langsung melonggarkan policy-nya.
+
+**Dan: dua gejala yang tampak jauh berbeda bisa punya satu sebab.** Logo
+Next.js yang hilang dan hydration mismatch dianggap dua masalah terpisah.
+Keduanya berasal dari satu baris konfigurasi.

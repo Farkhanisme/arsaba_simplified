@@ -383,7 +383,7 @@ export default function AbsenClient({ infoAwal }: { infoAwal: InfoAbsen }) {
         <Toaster position="top-center" />
         <Card aria-label="Status absen" className="animate-in fade-in slide-in-from-bottom duration-300 motion-reduce:animate-none">
           <CardContent className="flex flex-col gap-3 py-4">
-            <p className="text-sm">{info.alasan}</p>
+            <p className="text-base">{info.alasan}</p>
             <Button className={KELAS_SENTUH} onClick={muatUlang}>
               <RefreshCwIcon />Periksa lagi
             </Button>
@@ -408,8 +408,11 @@ export default function AbsenClient({ infoAwal }: { infoAwal: InfoAbsen }) {
               autoPlay
               playsInline
               muted
-              style={{ background: '#000' }}
-              className="aspect-[3/4] w-full rounded-lg object-cover"
+              // Hitam pekat dan TIDAK lewat token: ini pratinjau emulator kamera,
+              // bukan permukaan aplikasi. Mode gelap tidak boleh mengubahnya —
+              // yang penting video tidak pernah menerawang dengan latar putih
+              // sebelum frame pertama tiba.
+              className="aspect-[3/4] w-full rounded-lg bg-black object-cover"
               aria-label="Pratinjau kamera"
             />
           )}
@@ -437,7 +440,7 @@ export default function AbsenClient({ infoAwal }: { infoAwal: InfoAbsen }) {
           </div>
 
           {info.aksi === 'CHECKOUT' ? (
-            <p className="text-sm text-muted-foreground">Ada check-in terbuka. Ambil foto untuk check-out.</p>
+            <p className="text-base text-muted-foreground">Ada check-in terbuka. Ambil foto untuk check-out.</p>
           ) : null}
         </CardContent>
       </Card>

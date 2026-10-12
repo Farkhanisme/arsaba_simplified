@@ -80,22 +80,31 @@ describe('BUG-UI-07 — halaman absen memakai komponen shadcn', () => {
 
   it('TIDAK ada warna literal di halaman absen — warna datang dari komponen', () => {
     for (const f of BERKAS) {
+      // Tanpa pengecualian lagi. Sebelumnya baris ini melonggarkan syarat
+      // khusus <video> dengan menghapus `style={{ background: '#000' }}` dari
+      // teks sebelum diperiksa; karena pengecualian itu sudah dihapus di UI-5,
+      // melonggarkan tidak punya alasan dan hanya bisa menyembunyikan regresi.
       const kode = kodeTanpaKomentar(f);
-      // Pengecualian satu-satunya: <video> tetap hitam di dua mode, karena itu
-      // pratinjau kamera, bukan panel UI.
-      const tanpaVideo = kode.replace(/style=\{\{ background: '#000' \}\}/g, '');
-      expect(tanpaVideo, `warna literal di ${f}`).not.toMatch(/#[0-9a-fA-F]{3,8}\b/);
-      expect(tanpaVideo, `rgba/hsl literal di ${f}`).not.toMatch(/\b(rgba|hsla)\(/);
+      expect(kode, `warna literal di ${f}`).not.toMatch(/#[0-9a-fA-F]{3,8}\b/);
+      expect(kode, `rgba/hsl literal di ${f}`).not.toMatch(/\b(rgba|hsla)\(/);
     }
   });
 
-  it('hanya <video> yang masih memakai inline style, dan itu disengaja', () => {
+  it('TIDAK ADA inline style sama sekali di AbsenClient (UI-5, 2026-10-12)', () => {
+    // Sebelumnya tes ini justru MEMINDAI adanya 1 inline style di <video>:
+    // `style={{ background: '#000' }}`. Itu pengecualian yang tidak perlu —
+    // `bg-black` memberi hasil visual yang sama persis (hitam pekat, bukan
+    // token) TANPA inline style, dan lolos dari sapuan warna literal di atas
+    // karena Tailwind bukan literal hex.
+    //
+    // Pengecualian dihapus, bukan ditambah: kalau suatu saat <video> perlu
+    // inline style lagi, itu harus jadi keputusan sadar dengan alasannya.
     const kode = kodeTanpaKomentar('src/app/a/[token]/AbsenClient.tsx');
     const gaya = kode.match(/style=\{\{[^}]*\}\}/g) ?? [];
-    expect(gaya.length, 'jumlah inline style di AbsenClient').toBe(1);
-    expect(gaya[0]).toContain('#000');
-    // Dan harus menempel pada <video>, bukan pada panel mana pun.
-    expect(kode).toMatch(/<video[\s\S]{0,200}style=\{\{ background: '#000' \}\}/);
+    expect(gaya, `inline style tersisa: ${gaya.join(', ')}`).toEqual([]);
+
+    // Dan pratinjau kamera tetap hitam pekat di kedua mode.
+    expect(kode).toMatch(/<video[\s\S]{0,200}bg-black/);
   });
 
   it('judul "Jadwal hari ini" memakai CardTitle shadcn, bukan <h2> polos', () => {
@@ -175,12 +184,31 @@ describe('rules/05 §3 — isi halaman absen tidak boleh hilang', () => {
     const cari = (pola: RegExp) => baris.findIndex((b) => pola.test(b));
     const nama = cari(/\{info\.nama\}/);
     const jadwal = cari(/Jadwal hari ini/);
-    const kamera = cari(/<AbsenClient/);
+    // M12: kamera absen kini dirender di dalam TabsHalamanClient (tab Absen),
+    // bukan langsung sebagai anak <main>. Yang wajib terverifikasi tetap URUTAN
+    // bagian di layar — tab baru yang disisipkan di mana pun tidak boleh mendahului
+    // jadwal, dan riwayat absen tetap paling bawah.
+    const tab = cari(/<TabsHalamanClient/);
     const riwayat = cari(/<DaftarRiwayat/);
     expect(nama, 'header memakai info.nama').toBeGreaterThan(-1);
     expect(jadwal, 'jadwal setelah header').toBeGreaterThan(nama);
-    expect(kamera, 'kamera setelah jadwal').toBeGreaterThan(jadwal);
-    expect(riwayat, 'riwayat setelah kamera').toBeGreaterThan(kamera);
+    expect(tab, 'tab (berisi kamera) setelah jadwal').toBeGreaterThan(jadwal);
+    expect(riwayat, 'riwayat setelah tab').toBeGreaterThan(tab);
+  });
+
+  it('tab absen dan agenda ada, dan tab memuat kamera di dalamnya', () => {
+    // Tes di atas hanya membuktikan tab ada setelah jadwal — belum membuktikan
+    // kamera benar-benar berada DI DALAM tab absen. Tanpa ini, tab kosong yang
+    // namanya "Absen" akan lolos.
+    const tabs = readFileSync('src/app/a/[token]/TabsHalamanClient.tsx', 'utf-8');
+    const tabAbsen = tabs.indexOf('<TabsTrigger value="absen"');
+    const isiAbsen = tabs.indexOf('<AbsenClient');
+    const tabAgenda = tabs.indexOf('<TabsTrigger value="agenda"');
+    const isiAgenda = tabs.indexOf('<AgendaClient');
+    expect(tabAbsen).toBeGreaterThan(-1);
+    expect(isiAbsen).toBeGreaterThan(tabAbsen);
+    expect(tabAgenda).toBeGreaterThan(tabAbsen);
+    expect(isiAgenda).toBeGreaterThan(tabAgenda);
   });
 
   it('kalimat "Tidak ada jadwal" persis seperti rules/05 §3', () => {

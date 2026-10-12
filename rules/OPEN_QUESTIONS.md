@@ -4,7 +4,7 @@ Pertanyaan yang **memblokir** atau **membutuhkan keputusan pemilik**. ID berlanj
 Setiap entri: ID · konteks · apa yang sudah diverifikasi · opsi · rekomendasi.
 
 Status per 2026-10-03: **tidak ada pertanyaan terbuka.**
-Seluruh B-01 s.d. B-18 sudah tertutup. **ID berikutnya: B-20.**
+Seluruh B-01 s.d. B-18 sudah tertutup. **ID berikutnya: B-22.**
 
 ---
 
@@ -358,3 +358,117 @@ tidak menemukan apa-apa sekarang karena memang tidak ada bug warisan; nilainya a
 pemeliharaan selanjutnya. Detail di `rules/NOTES.md` §11.
 
 **ID berikutnya: B-19.**
+
+---
+
+## B-21 — CSP `/` dan `/login` memblokir inline style: hydration error + logo Next.js hilang ~~SELESAI 2026-10-12~~
+
+**Status: DITUTUP (diperbaiki 2026-10-12).** Keputusan pemilik: CSP produksi
+**tidak** dilonggarkan — keempat direktif tambahan hanya berlaku saat
+`NODE_ENV !== 'production'`.
+
+**Konteks.** M10-01 menambahkan CSP paling ketat ke `/` dan `/login`
+(`rules/22`). Saat itu penalaran hanya tentang `script-src` dan
+`'unsafe-inline'`; `style-src` sama sekali tidak dipertimbangkan. Akibatnya
+`default-src 'self'` diam-diam menjadi penggantinya, dan rantai fallback CSP3
+membuat **setiap atribut `style="..."` terblokir**.
+
+**Dua gejala, satu sebab:**
+
+| gejala | bukti |
+|---|---|
+| React: `A tree hydrated but some attributes ... didn't match`, diff menunjuk `<main style={{...}}>` (`src/app/page.tsx:5`) | `curl` mengembalikan `<main style="padding:24px;font-family:system-ui;max-width:640px"` — HTML server benar, penerapannya yang hilang |
+| Logo dev-tools Next.js tidak muncul sama sekali | bundle `next-devtools` memuat `createElement("style")` 3x; `<style>` diatur rantai `style-src` yang sama. (Bukan karena `data:` URI — bundle itu tidak punya satu pun — dan bukan karena CSSOM, yang memang tidak diblokir CSP.) |
+
+Rantai fallback `style-src-attr -> style-src -> default-src` sudah diverifikasi ke
+W3C CSP3 §6.8.3 dan MDN — lihat `rules/NOTES.md` §18.
+
+**Pembeda yang memastikan ini bukan soal React:** `/admin/:path*` sudah punya
+keempat direktif itu sejak awal dan tidak pernah mengalami gejala apa pun; `/`
+adalah satu-satunya halaman yang masih pakai inline style.
+
+**Perbaikan.**
+- `next.config.mjs` — `style-src 'self' 'unsafe-inline'`, `img-src 'self' data: blob:`,
+  `font-src 'self' data:`, `connect-src 'self'` ditambahkan lewat spread
+  kondisional, hanya saat bukan produksi. Byte CSP produksi tidak berubah.
+- `tests/m9-header.test.ts` — 6 tes baru yang mengunci KEDUA sisi (dev harus
+  longgar, produksi harus tetap ketat, `/a/:path*` harus tetap tanpa CSP).
+
+**Bukti tesnya benar** — tiga mutasi, semuanya menggagalkan tes:
+
+| mutasi | tes yang gagal |
+|---|---|
+| Selalu longgar (produksi ikut dilonggarkan) | `produksi: / TETAP ketat`, `produksi: /login TETAP ketat` |
+| `style-src` dihapus dari dev | `development: / mengizinkan style inline`, `development: /login ...` |
+| CSP ditambahkan ke `/a/:path*` | `/a/:path* tetap tanpa CSP` (tes lama **dan** tes baru) |
+
+### Temuan samping: bentrok port 3000 dengan proyek lain
+
+Saat diagnosa, port 3000 sedang dipakai `next-server (v16.4.0)` dari
+`web_profil_nnedak` (paket `mts-maarif-tieng`), bukan repo ini. `npm run dev`
+arsaba akan diam-diam pindah ke 3001, sedangkan `.env.example` dan
+`scripts/dev-siap.ts` masih menyebut 3000 — dan `APP_ORIGIN_DEV` yang tidak
+cocok akan membuat **setiap mutasi ditolak 403** oleh `originDiterima()`.
+
+**Perbaikan:** `npm run dev` dipin ke port 3100 (`package.json`), `APP_ORIGIN_DEV`
+di `.env.local` dan `.env.example` diselaraskan, teks petunjuk di
+`scripts/dev-siap.ts` diperbarui. `.env.local` sendiri diabaikan git.
+
+Port 3100 dipilih karena bebas dan tidak menyentuh proses milik proyek lain.
+
+**Catatan operasional:** `APP_ORIGIN_DEV` hanya dibaca saat
+`NODE_ENV=development`. Kalau aplikasi dibuka lewat IP jaringan
+(`http://192.168.x.x:3100`) untuk diuji dari perangkat lain, mutasi akan 403 —
+pemeriksaan Origin selalu persis. Ini perilaku yang sudah ada sebelumnya, bukan
+regresi.
+
+**ID berikutnya: B-22.**
+
+---
+
+## B-22 — "ukuran dasar ≥ 16 px" tidak jelas cakupannya ~~SELESAI 2026-10-12~~
+
+**Status: DITUTUP — pemilik memutuskan 2026-10-12: metadata pasif tetap 14px.**
+
+**Konteks.** `rules/05` §2 menulis: "Font | Sistem/sans-serif; **ukuran dasar
+≥ 16 px** di halaman karyawan". Kata "ukuran dasar" tidak mendefinisikan apakah
+berlaku juga untuk badge, label form, penghitung, dan metadata.
+
+**Kenapa ini penting, bukan sekadar detail.** Halaman `/a/[token]` dipakai 26 orang,
+sebagian besar dari HP kelas bawah, sering sambil berdiri dan dengan satu tangan.
+Sebelum 2026-10-12 di sana ada 7 `text-xs` (12px) dan 11 `text-sm` (14px) — dan
+`text-xs` dipakai justru pada hal yang paling penting dibaca: alasan penolakan,
+keterangan agenda, syarat foto.
+
+**Keputusan pemilik: metadata pasif TETAP 14 px.** Teks isi naik ke 16 px; nama
+toko, tanggal-jam di bawah nama, dan "Percobaan ke-N" dibiarkan 14 px.
+
+| Elemen | Ukuran | Alasan |
+|---|---|---|
+| Teks isi: jadwal, alasan tombol nonaktif, alasan penolakan, keadaan kosong, riwayat, judul/keterangan agenda | `text-base` (16px) | Wajib dibaca untuk menyelesaikan tugas |
+| Metadata pasif: nama toko, tanggal-jam di bawah nama, "Percobaan ke-N" | `text-sm` (14px) | Bukan tugas; 14px masih terbaca |
+| `Label` di form agenda | `text-base` (16px) | `Label` shadcn default `text-sm`; tiga label itu wajib dibaca |
+| `text-xs` di halaman karyawan | **dilarang sama sekali** | 12px terlalu kecil untuk dibaca sambil berdiri |
+
+`Input` ternyata sudah benar sendiri: `text-base md:text-sm` — 16px di HP,
+14px di desktop. Pola itu disengaja dan tidak diubah.
+
+**Temuan sampingan:** kelas dasar `Card` shadcn memuat `text-sm` sendiri.
+Artinya teks apa pun di dalam `Card` yang tidak punya kelas ukuran eksplisit
+**turun ke 14px secara diam-diam**. Itu sebabnya `text-base` ditulis eksplisit,
+bukan mengandalkan pewarisan.
+
+**Poin yang ditolak dan alasannya:**
+
+1. Menaikkan metadata 14px ke 16px — **ditolak pemilik.** Bukan teks tugas;
+   14px masih terbaca dan tidak memperbesar halaman di HP kelas bawah.
+2. `Badge` shadcn memakai `text-xs` di kelas dasarnya. Menaikkannya berarti
+   menyentuh komponen bersama yang dipakai seluruh halaman admin, bukan hanya
+   halaman karyawan. Di luar cakupan, tidak diubah.
+
+**Pagar otomatis.** `tests/ui5-ukuran-font-karyawan.test.ts`: sapuan sumber
+menolak `text-xs` dan ukuran bebas di bawah 16px di seluruh `/a/[token]/`, plus
+tes render yang memeriksa elemen yang teksnya dibaca. Dibuktikan dengan mutasi:
+ubah `text-base` → `text-sm`, dan sisipkan `text-xs`.
+
+**ID berikutnya: B-23.**
