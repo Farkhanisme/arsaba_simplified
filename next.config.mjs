@@ -30,12 +30,46 @@ const nextConfig = {
   // you will need to enable 'unsafe-eval'". NODE_ENV dibaca di sini, saat
   // server berjalan (`next dev` = development, `next start` = production),
   // mengikuti pola contoh resmi yang sama (lihat rules/NOTES.md §17).
+  //
+  // BUG-CSP-01 (lihat rules/OPEN_QUESTIONS.md B-21): `/` dan `/login` TIDAK
+  // punya direktif style-src/img-src/font-src/connect-src. Rantai fallback CSP3
+  // untuk atribut `style="..."` adalah
+  //     style-src-attr  ->  style-src  ->  default-src
+  // jadi tanpa style-src, SEMUA atribut style inline diblokir oleh
+  // `default-src 'self'`. Akibatnya di `next dev`:
+  //   1. src/app/page.tsx:5 <main style={{...}}> diblokir -> React melaporkan
+  //      "A tree hydrated but some attributes ... didn't match" tepat di
+  //      elemen itu, dan
+  //   2. dev-tools overlay Next.js (logo Next.js) tidak terlihat sama sekali:
+  //      bundle `next-devtools` menyuntik <style> ke document (terbukti:
+  //      `createElement("style")` muncul 3x di chunk itu), dan <style> diatur
+  //      oleh rantai style-src yang sama.
+  // Perhatikan: penulisan lewat CSSOM (el.style.display = ...) TIDAK diblokir
+  // CSP, dan bundle ini juga tidak memakai data: URI sama sekali — yang
+  // diblokir hanya <style> yang disuntik dan atribut style="...".
+  // `/admin/:path*` sudah sejak awal punya keempat direktif itu, dan halaman
+  // admin memang tidak pernah mengalami bug ini — itu pembeda yang memastikan
+  // ini soal CSP, bukan soal React.
+  //
+  // Perbaikan: keempat direktif itu ditambahkan HANYA saat BUKAN produksi,
+  // dengan penalaran yang sama seperti 'unsafe-eval' di atas. Byte CSP produksi
+  // TIDAK berubah sama sekali. Risiko `style-src 'unsafe-inline'` adalah
+  // kebocoran data lewat CSS, yang tidak relevan di sini (CSS aplikasi ini
+  // statis, tidak ada input pengguna yang masuk ke selector).
   async headers() {
     const modeProduksi = process.env['NODE_ENV'] === 'production';
     const skripAman = modeProduksi ? "'self' 'unsafe-inline'" : "'self' 'unsafe-inline' 'unsafe-eval'";
     const cspMasuk = [
       "default-src 'self'",
       `script-src ${skripAman}`,
+      ...(modeProduksi
+        ? []
+        : [
+            "style-src 'self' 'unsafe-inline'",
+            "img-src 'self' data: blob:",
+            "font-src 'self' data:",
+            "connect-src 'self'",
+          ]),
       "object-src 'none'",
       "base-uri 'self'",
       "form-action 'self'",

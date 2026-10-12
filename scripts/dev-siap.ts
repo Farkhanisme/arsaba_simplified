@@ -57,7 +57,7 @@ if (MINIMAL) {
 
 console.log('\nLangkah berikutnya:');
 console.log('  npm run dev');
-console.log('  lalu buka http://localhost:3000');
+console.log('  lalu buka http://localhost:3100');
 console.log('  akun: admin atau superadmin, password dari SEED_PASSWORD');
 console.log('');
 console.log('PENTING: pakai `npm run dev`. Kalau memakai `npm run build && npm start`,');

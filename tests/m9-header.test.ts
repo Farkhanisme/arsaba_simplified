@@ -103,3 +103,56 @@ describe('M10 CSP tanpa unsafe-eval di produksi (M10-02)', () => {
     expect(await cspUntuk('/login', 'development')).toContain('unsafe-eval');
   });
 });
+
+/**
+ * BUG-CSP-01 (B-21). `/` dan `/login` tidak punya style-src/img-src/font-src/
+ * connect-src, jadi semuanya jatuh ke `default-src 'self'` dan setiap atribut
+ * `style="..."` diblokir. Satu sebab untuk dua gejala sekaligus: React
+ * melaporkan hydration mismatch tepat di <main style={...}> (src/app/page.tsx),
+ * dan logo dev-tools Next.js tidak muncul sama sekali.
+ *
+ * Perbaikannya hanya berlaku di development. Tes di bawah mengunci KEDUA sisi:
+ * kalau hanya menguji sisi development, kelonggaran yang tidak sengaja ikut ke
+ * produksi tidak akan pernah gagal.
+ */
+describe('BUG-CSP-01: style-src hanya di development', () => {
+  const env = process.env as Record<string, string | undefined>;
+  const NODE_ENV_LAMA = env['NODE_ENV'];
+
+  afterEach(() => {
+    env['NODE_ENV'] = NODE_ENV_LAMA;
+  });
+
+  function cspUntuk(sumber: string, nodeEnv: string): Promise<string> {
+    env['NODE_ENV'] = nodeEnv;
+    return konfigurasi.headers().then((semua) => {
+      const peta = new Map(semua.find((a) => a.source === sumber)!.headers.map((h) => [h.key, h.value]));
+      return peta.get('Content-Security-Policy') ?? '';
+    });
+  }
+
+  for (const sumber of ['/', '/login']) {
+    it(`development: ${sumber} mengizinkan style inline (tanpa itu <main style> diblokir)`, async () => {
+      const csp = await cspUntuk(sumber, 'development');
+      expect(csp).toContain("style-src 'self' 'unsafe-inline'");
+      // Logo dev-tools Next.js memakai SVG data: URI — tanpa ini tetap tak terlihat.
+      expect(csp).toContain("img-src 'self' data: blob:");
+    });
+
+    it(`produksi: ${sumber} TETAP ketat — style-src tidak ikut dilonggarkan`, async () => {
+      const csp = await cspUntuk(sumber, 'production');
+      expect(csp).not.toContain('style-src');
+      expect(csp).not.toContain('img-src');
+      expect(csp).toContain("object-src 'none'");
+    });
+  }
+
+  it('development: /a/:path* tetap TANPA CSP — kamera 26 karyawan', async () => {
+    env['NODE_ENV'] = 'development';
+    const semua = await konfigurasi.headers();
+    const karyawan = semua.find((a) => a.source === '/a/:path*')!;
+    const peta = new Map(karyawan.headers.map((h) => [h.key, h.value]));
+    expect(peta.has('Content-Security-Policy')).toBe(false);
+    expect(peta.get('Permissions-Policy')).toBe('camera=(self)');
+  });
+});
