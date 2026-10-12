@@ -7,7 +7,14 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHeadSticky,
+  TableHeaderSticky,
+  TableRow,
+} from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
 import { PanelGalat, PanelMemuat } from '../komponen';
 
@@ -147,19 +154,21 @@ export function TabelLaporanAgenda({
   return (
     <Card>
       <CardContent className="p-0">
-        <Table>
-          <TableHeader>
+        // Daftar menunggu verifikasi bisa menumpuk banyak (setiap laporan agenda
+        // yang belum diperiksa menambah satu baris), jadi header harus lengket.
+        <Table maxH="70vh" scrollLabel="Tabel laporan agenda menunggu verifikasi">
+          <TableHeaderSticky>
             <TableRow>
-              <TableHead>Tanggal</TableHead>
-              <TableHead>Karyawan</TableHead>
-              <TableHead>Toko</TableHead>
-              <TableHead>Percobaan</TableHead>
-              <TableHead>Keterangan</TableHead>
-              <TableHead>Foto</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Aksi</TableHead>
+              <TableHeadSticky>Tanggal</TableHeadSticky>
+              <TableHeadSticky>Karyawan</TableHeadSticky>
+              <TableHeadSticky>Toko</TableHeadSticky>
+              <TableHeadSticky>Percobaan</TableHeadSticky>
+              <TableHeadSticky>Keterangan</TableHeadSticky>
+              <TableHeadSticky>Foto</TableHeadSticky>
+              <TableHeadSticky>Status</TableHeadSticky>
+              <TableHeadSticky>Aksi</TableHeadSticky>
             </TableRow>
-          </TableHeader>
+          </TableHeaderSticky>
           <TableBody>
             {daftar.map((r) => {
               const foto = adaFoto(r.id);

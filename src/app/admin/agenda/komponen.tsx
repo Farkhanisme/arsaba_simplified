@@ -7,7 +7,14 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHeadSticky,
+  TableHeaderSticky,
+  TableRow,
+} from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
 import { PanelGalat, PanelMemuat } from '../komponen';
 
@@ -326,17 +333,17 @@ export function TabelAgenda({
   return (
     <Card>
       <CardContent className="p-0">
-        <Table>
-          <TableHeader>
+        <Table maxH="70vh" scrollLabel="Tabel agenda">
+          <TableHeaderSticky>
             <TableRow>
-              <TableHead>Judul</TableHead>
-              <TableHead>Penerima</TableHead>
-              <TableHead>Foto</TableHead>
-              <TableHead>Target</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Aksi</TableHead>
+              <TableHeadSticky>Judul</TableHeadSticky>
+              <TableHeadSticky>Penerima</TableHeadSticky>
+              <TableHeadSticky>Foto</TableHeadSticky>
+              <TableHeadSticky>Target</TableHeadSticky>
+              <TableHeadSticky>Status</TableHeadSticky>
+              <TableHeadSticky>Aksi</TableHeadSticky>
             </TableRow>
-          </TableHeader>
+          </TableHeaderSticky>
           <TableBody>
             {daftar.map(({ agenda, namaPenerima }) => (
               <TableRow key={agenda.id}>

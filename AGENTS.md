@@ -189,6 +189,28 @@ dokumen; tugas agen adalah **menerjemahkan dokumen menjadi kode tanpa mengarang 
   tidak berfungsi. Butuh `max-h` pada wrapper (mengubahnya jadi kotak scroll
   sendiri) ATAU melepas `overflow-x` dari wrapper (mengorbankan gulir horizontal).
   Keduanya punya konsekuensi berbeda dan **memerlukan keputusan pemilik**.
+- **UI-5B selesai (2026-10-12):** pemilik memilih **sticky hanya di halaman yang
+  benar-benar panjang**. `Table` sekarang menerima prop `maxH` + `scrollLabel`;
+  tanpa `maxH` perilakunya persis seperti sebelumnya (tanpa scroll container
+  vertikal). Dipakai di **audit-log, agenda, verifikasi-agenda** (70vh, dengan
+  `role="region"` + `aria-label` + `tabIndex` supaya bisa difokus dari keyboard).
+  `TableHead` biasa **sengaja tidak** bisa sticky; ada `TableHeadSticky` terpisah
+  yang punya `sticky top-0 z-10 bg-card`. Halaman master (toko/shift/karyawan/akun)
+  **tidak** diberi `maxH` — 10 toko dan 26 karyawan muat tanpa terpotong, jadi
+  scrollbar kedua hanya memperkecil isi tanpa manfaat.
+  `tests/ui5b-tabel-lengket.test.ts` (11 tes) mengunci **pasangan** `maxH` +
+  sel sticky, bukan keberadaan string "sticky" — karena keberadaan string itu
+  persis yang terbaru dan tidak menghasilkan apa pun.
+  **BUG-UI-01 ditutup:** halaman akar bukan lagi inline style. Inline style di
+  `src/app/` kini **0**.
+- **Paginasi tidak dikerjakan di UI-5B, dan alasannya teknis — bukan sekadar
+  malas.** Repo `master/karyawan.ts`, `toko.ts`, dan `akun` **tidak punya
+  parameter `limit`/`offset` sama sekali**; hanya `repo/audit-log.ts` yang
+  punya (BATAS_BAWAN 50, BATAS_MAKS 200). Jadi §6 "paginasi untuk daftar
+  panjang" belum terpenuhi di sana, dan **menutupnya berarti mengubah query**,
+  bukan UI. Ditandai UI-5C.
+  Tapi: dengan 10 toko dan 26 karyawan, daftar itu muat tanpa paginasi. Yang
+  benar-benar perlu paginasi adalah audit-log (sudah punya) dan verifikasi.
 - **Urutan diagnosis waktu `test:tz` gagal.** Kalau tes gagal di ketiga timezone
   sekaligus (`UTC`/`Asia/Jakarta`/`America/New_York`), itu hampir selalu **bukan**
   bug timezone — itu regresi biasa yang muncul di mana-mana. Jalankan satu timezone
@@ -410,7 +432,8 @@ Tidak ada yang terblokir — kolom keputusan menunjukkan keputusan yang dipakai.
 | M13 | Agenda — verifikasi admin + penguncian periode terekspor | K-61, K-65 | **SELESAI** 2026-10-08 |
 | M14 | Agenda — rekap Excel (sheet `Detail Agenda`), blokir ekspor, dashboard | K-63, K-64 | **SELESAI** 2026-10-08 · 942 tes |
 | UI-5A | **Batch A — 4 celah `rules/05`**: not-found karyawan, 404 root, `error.tsx` + `global-error.tsx`, font ≥16px karyawan | `rules/05` §1.4, §2, K-24 | **SELESAI** 2026-10-12 · 972 tes |
-| UI-5B | 8 tabel tanpa header lengket, 8 halaman tanpa paginasi, halaman akar versi M0 | `rules/05` §2, §6 | belum (menunggu) |
+| UI-5B | Header lengket di 3 tabel panjang + halaman akar (BUG-UI-01) | `rules/05` §2 | **SELESAI** 2026-10-12 · 983 tes |
+| UI-5C | Paginasi di `master/*` dan `akun` (repo belum punya `LIMIT`) | `rules/05` §6 | belum — butuh perubahan query |
 
 ## Yang paling mudah salah
 

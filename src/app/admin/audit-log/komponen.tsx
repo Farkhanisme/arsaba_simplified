@@ -24,7 +24,9 @@ import {
   TableBody,
   TableCell,
   TableHead,
+  TableHeadSticky,
   TableHeader,
+  TableHeaderSticky,
   TableRow,
 } from '@/components/ui/table';
 
@@ -184,17 +186,21 @@ export function TabelAudit({
   return (
     <Card>
       <CardContent className="p-0">
-        <Table>
-          <TableHeader>
+        // maxH: 50 baris per halaman (BATAS_BAWAN di repo/audit-log.ts) — cukup
+        // banyak untuk melewati tinggi layar, jadi header harus lengket.
+        // Tanpa maxH, `sticky` lengket ke wrapper yang tidak pernah scroll dan
+        // tidak ada efeknya (lihat catatan di components/ui/table.tsx).
+        <Table maxH="70vh" scrollLabel="Tabel riwayat audit">
+          <TableHeaderSticky>
             <TableRow>
-              <TableHead>Waktu</TableHead>
-              <TableHead>Pelaku</TableHead>
-              <TableHead>Aksi</TableHead>
-              <TableHead>Entitas</TableHead>
-              <TableHead>Ringkasan</TableHead>
-              <TableHead>Detail</TableHead>
+              <TableHeadSticky>Waktu</TableHeadSticky>
+              <TableHeadSticky>Pelaku</TableHeadSticky>
+              <TableHeadSticky>Aksi</TableHeadSticky>
+              <TableHeadSticky>Entitas</TableHeadSticky>
+              <TableHeadSticky>Ringkasan</TableHeadSticky>
+              <TableHeadSticky>Detail</TableHeadSticky>
             </TableRow>
-          </TableHeader>
+          </TableHeaderSticky>
           <TableBody>
             {baris.map((b) => (
               <TableRow key={b.id}>
