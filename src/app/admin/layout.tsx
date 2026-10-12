@@ -6,6 +6,7 @@ import type { Peran } from '../../server/izin';
 import { menuUntukPeran } from './menu';
 import TombolKeluar from './tombol-keluar';
 import TautanMenu from './tautan-menu';
+import JudulHalaman from './judul-halaman';
 import PengalihTema from '../pengalih-tema';
 import {
   Sidebar,
@@ -85,8 +86,11 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         </SidebarFooter>
       </Sidebar>
       <SidebarInset>
-        <header className="flex items-center gap-2 p-3">
+        {/* `JudulHalaman` adalah client component terpisah. Layout ini tidak
+            bisa punya 'use client' karena memanggil cookies(). */}
+        <header className="flex items-center gap-3 p-3">
           <SidebarTrigger aria-label="Buka menu" />
+          <JudulHalaman peran={sesi.peran} />
         </header>
         <main className="px-6 pb-6">{children}</main>
       </SidebarInset>

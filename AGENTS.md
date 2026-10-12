@@ -203,14 +203,47 @@ dokumen; tugas agen adalah **menerjemahkan dokumen menjadi kode tanpa mengarang 
   persis yang terbaru dan tidak menghasilkan apa pun.
   **BUG-UI-01 ditutup:** halaman akar bukan lagi inline style. Inline style di
   `src/app/` kini **0**.
-- **Paginasi tidak dikerjakan di UI-5B, dan alasannya teknis — bukan sekadar
+- **Paginasi tidak dikerjakan di UI-5B/UI-5C, dan alasannya teknis — bukan sekadar
   malas.** Repo `master/karyawan.ts`, `toko.ts`, dan `akun` **tidak punya
   parameter `limit`/`offset` sama sekali**; hanya `repo/audit-log.ts` yang
   punya (BATAS_BAWAN 50, BATAS_MAKS 200). Jadi §6 "paginasi untuk daftar
   panjang" belum terpenuhi di sana, dan **menutupnya berarti mengubah query**,
-  bukan UI. Ditandai UI-5C.
+  bukan UI. Ditandai UI-5D.
   Tapi: dengan 10 toko dan 26 karyawan, daftar itu muat tanpa paginasi. Yang
   benar-benar perlu paginasi adalah audit-log (sudah punya) dan verifikasi.
+- **UI-5C selesai (2026-10-12): `loading.tsx` + judul halaman di header.**
+  1004 tes. Celah §1.4 "keadaan memuat" menutup transisi rute (sebelumnya nol
+  `loading.tsx` di seluruh aplikasi — layar hampa selama beberapa detik saat
+  pindah menu). `loading.tsx` karyawan **sengaja tidak** memuat kerangka kamera:
+  `AbsenClient` meminta `getUserMedia` di `useEffect` mount
+  (`AbsenClient.tsx:219`), jadi menahan render menunda permintaan izin browser
+  juga — karyawan menunggu lebih lama justru di langkah yang paling sering gagal.
+- **Trade-off yang pemilik ketahui dan setujui: `loading.tsx` di `/a/[token]`
+  mengubah status "link tidak berlaku" dari 404 jadi 200.** Shell terkirim lebih
+  dulu supaya skeleton bisa tampil; `notFound()` baru dipanggil setelahnya, dan
+  response code sudah terkunci. Diverifikasi: `/halaman-ngawur` (tanpa
+  `loading.tsx`) tetap 404, `/a/token-palsu` (dengan `loading.tsx`) 200.
+  Dipilih pemilik 2026-10-12: pertahankan skeleton. Kalau nanti link status
+  HTTP dibutuhkan (mis. untuk<link> di WhatsApp), ini yang harus diubah.
+- **Tiga celah yang HANYA ketahuan `next build`, bukan `tsc` atau vitest:**
+  (1) `usePathname` di server component, (2) `'use client'` yang wajib ada,
+  (3) import tak terpakai. Semuanya build hijau di `tsc` dan 1004 tes.
+  **Pelajaran: `tsc` hijau BUKAN berarti build hijau.** Jalankan `npm run build`
+  setiap kali menyentuh `'use client'`/`usePathname`/layout.
+  `JudulHalaman` dipisah ke `judul-halaman.tsx` (+ `'use client'`), dan
+  `labelHalaman` ke `label-halaman.ts` — dua tes menjaga pemisahan itu.
+- **Kesalahan terbesar UI-5C: menguji SALINAN, bukan kode aslinya.** Tes
+  pertama menyalin logika `labelHalaman` ke file tes. Mutasi "pakai
+  `SUPER_ADMIN` selalu" (membocorkan label halaman Super Admin ke Admin biasa)
+  **LULUS** — karena yang diuji tetap salinan yang sehat. Setelah `labelHalaman`
+  diekspor ke berkas sendiri dan tes mengimpornya, mutasi yang SAMA langsung
+  tertangkap. Salinan logika di dalam tes hampir tidak pernah menguji apa pun
+  yang sedang berjalan.
+- **Memasang `tests/ui5c` sempat membuat satu mutasi LALUS lagi**: menghapus
+  `<JudulHalaman>` dari `<header>` tidak menggagalkan apa pun, karena tidak ada
+  tes yang melihat header itu sendiri. Ditambahkan tes yang memotong substring
+  antara `<header>` dan `</header>` — sekarang mutasi "hapus dari header" DAN
+  "pindahkan ke luar header" sama-sama tertangkap.
 - **Urutan diagnosis waktu `test:tz` gagal.** Kalau tes gagal di ketiga timezone
   sekaligus (`UTC`/`Asia/Jakarta`/`America/New_York`), itu hampir selalu **bukan**
   bug timezone — itu regresi biasa yang muncul di mana-mana. Jalankan satu timezone
@@ -433,7 +466,8 @@ Tidak ada yang terblokir — kolom keputusan menunjukkan keputusan yang dipakai.
 | M14 | Agenda — rekap Excel (sheet `Detail Agenda`), blokir ekspor, dashboard | K-63, K-64 | **SELESAI** 2026-10-08 · 942 tes |
 | UI-5A | **Batch A — 4 celah `rules/05`**: not-found karyawan, 404 root, `error.tsx` + `global-error.tsx`, font ≥16px karyawan | `rules/05` §1.4, §2, K-24 | **SELESAI** 2026-10-12 · 972 tes |
 | UI-5B | Header lengket di 3 tabel panjang + halaman akar (BUG-UI-01) | `rules/05` §2 | **SELESAI** 2026-10-12 · 983 tes |
-| UI-5C | Paginasi di `master/*` dan `akun` (repo belum punya `LIMIT`) | `rules/05` §6 | belum — butuh perubahan query |
+| UI-5C | `loading.tsx` (transisi rute) + judul halaman di header | `rules/05` §1.4 | **SELESAI** 2026-10-12 · 1004 tes |
+| UI-5D | Paginasi di `master/*` dan `akun` (repo belum punya `LIMIT`) | `rules/05` §6 | belum — butuh perubahan query |
 
 ## Yang paling mudah salah
 
