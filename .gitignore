@@ -9,5 +9,9 @@ data/*.db-journal
 .env.local
 .vercel
 
+# Alat kerja lokal agen. Isinya skills bawaan (Python, referensi shadcn) dan
+# bukan milik repo ini — masuk git hanya menambah ukuran repo tanpa nilai.
+.opencode/
+
 # Artefak TypeScript: berubah setiap build, hanya noise di git diff.
 *.tsbuildinfo
