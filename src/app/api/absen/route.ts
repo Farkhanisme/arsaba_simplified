@@ -8,6 +8,8 @@ import {
   bolehCheckOut,
   tokoPadaTanggal,
   tentukanStatusLokasi,
+  rapikanKeterangan,
+  KETERANGAN_MAKS,
 } from '../../../server/aturan/absensi';
 import {
   resolveLinkAktif,
@@ -33,6 +35,10 @@ const SkemaDasar = z.object({
   jenis: z.enum(['CHECKIN', 'CHECKOUT'], { errorMap: () => ({ message: 'Jenis absen tidak valid.' }) }),
   request_id: z.string().uuid('ID permintaan tidak valid.'),
   lokasi_status: z.enum(['DITOLAK', 'GAGAL']).optional(),
+  // BR-A13 (K-66): keterangan opsional. Tidak memengaruhi satu pun aturan
+  // di bawah — status, kuota, keterlambatan, dan pasangan tetap dihitung
+  // persis seperti absen tanpa keterangan.
+  keterangan: z.string().max(KETERANGAN_MAKS, `Keterangan maksimal ${KETERANGAN_MAKS} karakter.`).optional(),
 });
 
 class GalatAbsen extends Error {
@@ -75,12 +81,16 @@ export const POST = guardTanpaSesi(async (req: NextRequest) => {
     jenis: String(form.get('jenis') ?? ''),
     request_id: String(form.get('request_id') ?? ''),
     lokasi_status: form.get('lokasi_status') === null ? undefined : String(form.get('lokasi_status')),
+    keterangan: form.get('keterangan') === null ? undefined : String(form.get('keterangan')),
   });
   if (!parsed.success) {
     const pesan = parsed.error.issues[0]?.message ?? 'Input tidak valid.';
     return NextResponse.json({ kode: 'INPUT_TIDAK_VALID', pesan }, { status: 400 });
   }
   const { token, jenis, request_id } = parsed.data;
+  // BR-A13: trim, dan kosong menjadi NULL. Kosong TIDAK boleh memblokir absen —
+  // keterangan tidak pernah jadi syarat, hanya pelengkap.
+  const keterangan = rapikanKeterangan(parsed.data.keterangan);
 
   const foto = form.get('foto');
   if (!(foto instanceof File) || foto.size === 0) {
@@ -223,6 +233,7 @@ export const POST = guardTanpaSesi(async (req: NextRequest) => {
           lat: lat ?? null,
           lng: lng ?? null,
           lokasi_status: lokasiStatus,
+          keterangan,
         },
         sekarang,
         tx,

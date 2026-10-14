@@ -302,7 +302,7 @@ describe('M8 rekap & ekspor', () => {
     expect(dariFile).toEqual(ringkasan.map((r) => [r.karyawan_nama, r.hari_hadir, r.hari_izin, r.hari_tanpa_keterangan, r.total_terlambat_final, r.agenda_selesai, r.agenda_ditolak]));
   });
 
-  it('Excel: 12 kolom Detail, nilai WIB, baca balik', async () => {
+  it('Excel: 13 kolom Detail, nilai WIB, baca balik', async () => {
     const res = await ekspor(req('/api/admin/rekap/ekspor', { method: 'POST', body: { dari: D5, sampai: D5, toko_id: toko['Toko A'] }, cookie: admin }));
     expect(res.status).toBe(200);
     const wb = new ExcelJS.Workbook();
@@ -310,11 +310,14 @@ describe('M8 rekap & ekspor', () => {
     const ws = wb.getWorksheet('Detail Harian')!;
     const header: unknown[] = [];
     ws.getRow(1).eachCell((c) => header.push(c.value));
-    expect(header.length).toBe(12);
+    // 12 -> 13 pada 2026-10-14: kolom "Keterangan Karyawan" (BR-A13/K-66)
+    // disisipkan sebelum "Catatan Koreksi". Indeks sel di bawah (0,4,5,8)
+    // semuanya SEBELUM kolom baru, jadi tidak bergeser.
+    expect(header.length).toBe(13);
     expect(header).toEqual([
       'Tanggal', 'Karyawan', 'Toko', 'Slot Jadwal Acuan', 'Waktu Check-in', 'Waktu Check-out',
       'Status Check-in', 'Status Check-out', 'Selisih Sistem (menit)', 'Keterlambatan Final (menit)',
-      'Penandaan', 'Catatan Koreksi',
+      'Penandaan', 'Keterangan Karyawan', 'Catatan Koreksi',
     ]);
     // Baris K12: tanggal & jam WIB persis, selisih 0 (07:00 vs 07:00).
     const baris2: unknown[] = [];

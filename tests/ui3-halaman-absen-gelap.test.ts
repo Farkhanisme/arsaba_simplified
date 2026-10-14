@@ -26,13 +26,15 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { DaftarRiwayat } from '../src/app/a/[token]/page';
 import { IsiModalFoto, pilihKameraBelakang } from '../src/app/a/[token]/AbsenClient';
 
-const CONTOH_RIWAYAT = [
-  { jenis: 'CHECKIN', waktu: '2026-10-03T07:05:00+07:00', status: 'DISETUJUI', alasan_tolak: null },
-  { jenis: 'CHECKOUT', waktu: '2026-10-03T15:02:00+07:00', status: 'MENUNGGU', alasan_tolak: null },
-  { jenis: 'CHECKIN', waktu: '2026-10-02T09:00:00+07:00', status: 'DITOLAK', alasan_tolak: 'Foto tidak terbaca.' },
+type Riwayat = { jenis: string; waktu: string; status: string; alasan_tolak: string | null; keterangan: string | null };
+
+const CONTOH_RIWAYAT: Riwayat[] = [
+  { jenis: 'CHECKIN', waktu: '2026-10-03T07:05:00+07:00', status: 'DISETUJUI', alasan_tolak: null, keterangan: null },
+  { jenis: 'CHECKOUT', waktu: '2026-10-03T15:02:00+07:00', status: 'MENUNGGU', alasan_tolak: null, keterangan: null },
+  { jenis: 'CHECKIN', waktu: '2026-10-02T09:00:00+07:00', status: 'DITOLAK', alasan_tolak: 'Foto tidak terbaca.', keterangan: null },
 ];
 
-const RIWAYAT_KOSONG: { jenis: string; waktu: string; status: string; alasan_tolak: string | null }[] = [];
+const RIWAYAT_KOSONG: Riwayat[] = [];
 
 function htmlRiwayat(isi = CONTOH_RIWAYAT): string {
   return renderToStaticMarkup(createElement(DaftarRiwayat, { riwayat: isi }));
@@ -283,6 +285,8 @@ describe('Modal hasil foto — mengunci latar sampai ada keputusan', () => {
     src: 'blob:hasil-foto',
     aksi: 'CHECKIN',
     mengirim: false,
+    keterangan: '',
+    onUbahKeterangan: () => {},
     onFotoUlang: () => {},
     onKirim: () => {},
   };
@@ -314,7 +318,9 @@ describe('Modal hasil foto — mengunci latar sampai ada keputusan', () => {
     // Kalau modal bisa ditutup sembarangan, foto hilang tanpa jejak dan
     // karyawan bingung — hanya Foto Ulang atau hasil kirim yang menutupnya.
     const kode = kodeTanpaKomentar('src/app/a/[token]/AbsenClient.tsx');
-    expect(kode, 'DialogContent tanpa tombol tutup').toMatch(/<DialogContent showCloseButton=\{false\}/);
+    // `\s+` karena atribut JSX boleh ditulis terpisah baris — BR-A13 membuat
+    // DialogContent punya beberapa atribut, jadi tidak lagi satu baris.
+    expect(kode, 'DialogContent tanpa tombol tutup').toMatch(/<DialogContent\s+showCloseButton=\{false\}/);
     expect(kode, 'permintaan tutup dari klik-luar/Escape diabaikan').toMatch(/<Dialog open=\{modalTerbuka\} onOpenChange=\{\(\) => \{\}\}>/);
   });
 
@@ -393,8 +399,13 @@ describe('BUG-UI-09 — "Absen hari ini" langsung muncul tanpa reload manual', (
   it('kirim sukses memicu muatUlang sehingga daftar ikut segar', () => {
     // kirim() yang berhasil harus mengakhiri dengan await muatUlang() — itu
     // satu-satunya jalur yang menyegarkan daftar "Absen hari ini".
+    // `\s+` (bukan `.*`): yang dicari tetap urutan langsung toast.success lalu
+    // muatUlang. Baris `setKeterangan('')` (BR-A13) boleh ada di antaranya —
+    // ia membersihkan keterangan, bukan mengganti pemicu refresh.
     const kode = kodeTanpaKomentar('src/app/a/[token]/AbsenClient.tsx');
-    expect(kode, 'kirim sukses memanggil muatUlang').toMatch(/toast\.success\(badan\.pesan as string\);\s+await muatUlang\(\);/);
+    expect(kode, 'kirim sukses memanggil muatUlang').toMatch(
+      /toast\.success\(badan\.pesan as string\);[\s\S]{0,200}?await muatUlang\(\);/,
+    );
   });
 });
 
@@ -410,7 +421,10 @@ describe('Animasi halus halaman absen — hormati motion-reduce', () => {
   it('kartu kamera dan foto hasil punya animasi masuk', () => {
     const kode = kodeTanpaKomentar('src/app/a/[token]/AbsenClient.tsx');
     expect(kode, 'kartu ambil absen beranimasi').toMatch(/<Card aria-label="Ambil absen" className="[^"]*animate-in/);
-    expect(kode, 'foto hasil beranimasi').toMatch(/alt="Hasil foto absen" className="[^"]*animate-in fade-in/);
+    // `[\s\S]{0,200}?` untuk melewati baris atribut yang sekarang terpisah:
+    // <img> punya src/alt di satu baris dan className di baris berikutnya
+    // (BR-A13 menambah max-h dan object-contain).
+    expect(kode, 'foto hasil beranimasi').toMatch(/alt="Hasil foto absen"[\s\S]{0,200}?className="[^"]*animate-in fade-in/);
   });
 
   it('setiap animate-in dipasangkan motion-reduce:animate-none', () => {

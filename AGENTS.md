@@ -225,6 +225,23 @@ dokumen; tugas agen adalah **menerjemahkan dokumen menjadi kode tanpa mengarang 
   `loading.tsx`) tetap 404, `/a/token-palsu` (dengan `loading.tsx`) 200.
   Dipilih pemilik 2026-10-12: pertahankan skeleton. Kalau nanti link status
   HTTP dibutuhkan (mis. untuk<link> di WhatsApp), ini yang harus diubah.
+- **M15 selesai (2026-10-14): keterangan absensi.** `K-66` + `BR-A13`. Kolom baru
+  `absensi.keterangan` lewat `migrations/0003_keterangan_absensi.sql` — `0001_init.sql`
+  **tidak** disentuh (md5 `466a7b1a…` tetap). Tanpa CHECK panjang, mengikuti preseden
+  `agenda.keterangan`/`alasan_koreksi`; batas 500 ditegakkan zod di route, **sebelum**
+  foto masuk Telegram (jadi keterangan kepanjangan tidak meninggalkan foto yatim).
+  Sifat yang dijaga tes: keterangan **tidak pernah** memengaruhi apa pun — kuota, status,
+  `keterlambatan_final_menit`, blokir BR-A9, dan idempotensi BR-A11 semuanya diuji dengan
+  keterangan terisi. Sheet "Detail Harian" jadi **13 kolom** (BR-R5 direvisi).
+  1032 tes; 10 mutasi semuanya tertangkap.
+- **Tiga jebakan M15 yang akan applicable lagi (semuanya sudah tercatat di `NOTES.md` §15c):**
+  (a) **`vitest -t` dengan pola yang tidak cocok nama tes mana pun tetap terlihat "lalus"**
+  — tesnya tidak pernah jalan. Mutasi "hapus kolom Excel" sempat dilaporkan LALUS karena
+  itu. Setiap skrip mutasi sekarang **wajib** memastikan ada tes yang benar-benar dieksekusi.
+  (b) **React 19 menulis `maxLength="500"` dengan huruf besar-kecil aslinya**, bukan
+  `maxlength` — pola harus `/i`. (c) **Menambah atribut JSX memecah satu baris jadi
+  beberapa**, jadi tes yang menyapu sumber dengan `X="..." Y="..."` ikut gagal; perbaiki
+  dengan `\s+`/`[\s\S]{0,200}?`, **jangan** melonggarkan assertion-nya.
 - **Tiga celah yang HANYA ketahuan `next build`, bukan `tsc` atau vitest:**
   (1) `usePathname` di server component, (2) `'use client'` yang wajib ada,
   (3) import tak terpakai. Semuanya build hijau di `tsc` dan 1004 tes.
@@ -464,6 +481,7 @@ Tidak ada yang terblokir — kolom keputusan menunjukkan keputusan yang dipakai.
 | M12 | Agenda — sisi karyawan (tab `/a/[token]`, kamera before/after, draft) | K-59, K-60 | **SELESAI** 2026-10-08 |
 | M13 | Agenda — verifikasi admin + penguncian periode terekspor | K-61, K-65 | **SELESAI** 2026-10-08 |
 | M14 | Agenda — rekap Excel (sheet `Detail Agenda`), blokir ekspor, dashboard | K-63, K-64 | **SELESAI** 2026-10-08 · 942 tes |
+| M15 | **Keterangan absensi** — teks bebas opsional di modal hasil foto (maks 500), tampil di kartu Verifikasi + kolom Excel ke-13 | K-66, BR-A13 | **SELESAI** 2026-10-14 · 1032 tes |
 | UI-5A | **Batch A — 4 celah `rules/05`**: not-found karyawan, 404 root, `error.tsx` + `global-error.tsx`, font ≥16px karyawan | `rules/05` §1.4, §2, K-24 | **SELESAI** 2026-10-12 · 972 tes |
 | UI-5B | Header lengket di 3 tabel panjang + halaman akar (BUG-UI-01) | `rules/05` §2 | **SELESAI** 2026-10-12 · 983 tes |
 | UI-5C | `loading.tsx` (transisi rute) + judul halaman di header | `rules/05` §1.4 | **SELESAI** 2026-10-12 · 1004 tes |

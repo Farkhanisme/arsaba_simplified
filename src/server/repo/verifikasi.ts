@@ -39,6 +39,8 @@ export interface BarisEvent {
   lokasi_status: string;
   status: string;
   alasan_tolak: string | null;
+  /** BR-A13: keterangan dari karyawan. Dibaca saja — keputusan verifikasi tidak memakainya. */
+  keterangan: string | null;
   keterlambatan_final_menit: number | null;
   alasan_koreksi: string | null;
 }
@@ -46,7 +48,7 @@ export interface BarisEvent {
 const KOLOM_DAFTAR =
   'a.id, a.request_id, a.karyawan_id, k.nama AS karyawan_nama, a.toko_id, t.nama AS toko_nama, ' +
   'a.tanggal, a.jenis, a.checkin_id, a.waktu, a.sumber, a.foto_file_id, a.lat, a.lng, ' +
-  'a.lokasi_status, a.status, a.alasan_tolak, a.keterlambatan_final_menit, a.alasan_koreksi';
+  'a.lokasi_status, a.status, a.alasan_tolak, a.keterangan, a.keterlambatan_final_menit, a.alasan_koreksi';
 
 export async function daftarEvent(filter: FilterEvent, ex: Executor): Promise<BarisEvent[]> {
   const syarat: string[] = [];

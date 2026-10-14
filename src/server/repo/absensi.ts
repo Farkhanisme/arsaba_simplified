@@ -22,12 +22,14 @@ export interface EventAbsensi {
   lokasi_status: string;
   status: string;
   alasan_tolak: string | null;
+  keterangan: string | null;
   dibuat_at: string;
 }
 
 const KOLOM_EVENT =
   'id, request_id, karyawan_id, toko_id, tanggal, jenis, checkin_id, waktu, sumber, ' +
-  'foto_file_id, foto_chat_id, foto_message_id, lat, lng, lokasi_status, status, alasan_tolak, dibuat_at';
+  'foto_file_id, foto_chat_id, foto_message_id, lat, lng, lokasi_status, status, alasan_tolak, ' +
+  'keterangan, dibuat_at';
 
 /**
  * BR-A1. Resolve token link aktif milik karyawan berstatus aktif.
@@ -119,11 +121,13 @@ export interface DataEventBaru {
   lat: number | null;
   lng: number | null;
   lokasi_status: string;
+  /** BR-A13: keterangan.opsional dari karyawan. Informasi saja. */
+  keterangan: string | null;
 }
 
 export async function insertEvent(data: DataEventBaru, dibuatAt: string, ex: Executor): Promise<number> {
   await ex.execute({
-    sql: "INSERT INTO absensi (request_id, karyawan_id, toko_id, tanggal, jenis, checkin_id, waktu, sumber, foto_file_id, foto_chat_id, foto_message_id, lat, lng, lokasi_status, status, dibuat_at) VALUES (?, ?, ?, ?, ?, ?, ?, 'KARYAWAN', ?, ?, ?, ?, ?, ?, 'MENUNGGU', ?)",
+    sql: "INSERT INTO absensi (request_id, karyawan_id, toko_id, tanggal, jenis, checkin_id, waktu, sumber, foto_file_id, foto_chat_id, foto_message_id, lat, lng, lokasi_status, keterangan, status, dibuat_at) VALUES (?, ?, ?, ?, ?, ?, ?, 'KARYAWAN', ?, ?, ?, ?, ?, ?, ?, 'MENUNGGU', ?)",
     args: [
       data.request_id,
       data.karyawan_id,
@@ -138,6 +142,7 @@ export async function insertEvent(data: DataEventBaru, dibuatAt: string, ex: Exe
       data.lat,
       data.lng,
       data.lokasi_status,
+      data.keterangan,
       dibuatAt,
     ],
   });

@@ -1,0 +1,26 @@
+-- 0003_keterangan_absensi.sql — Kolom keterangan pada absensi (K-66, BR-A13).
+--
+-- File ini MAJU SAJA. 0001_init.sql tidak diubah sama sekali (md5 466a7b1a…)
+-- dan 0002_agenda.sql juga tidak disentuh.
+--
+-- SATU-SATUNNYA perubahan di sini adalah menambah satu kolom. Kolom ini
+-- sengaja tidak punya CHECK panjang, karena presedennya sudah ada tiga kali di
+-- proyek ini: agenda.keterangan, agenda_laporan.keterangan, dan
+-- absensi.alasan_koreksi semuanya TEXT polos tanpa CHECK, dengan batas panjang
+-- ditegakkan zod di route.
+--
+-- SQLite sebenarnya mengizinkan CHECK pada kolom yang ditambahkan, dan CHECK
+-- itu ikut diuji ke seluruh baris lama (sqlite.org/lang_altertable.html §4,
+-- diverifikasi 2026-10-14, dicatat di rules/NOTES.md §15). Tidak dipakai di
+-- sini supaya migrasi ini tetap satu perubahan kecil yang tidak menyentuh
+-- data yang sudah ada.
+--
+-- Sifat kolom ini (penting — jangan diubah tanpa keputusan baru):
+--   - INFORMASI SAJA. Tidak memengaruhi status, keterlambatan, kuota, pasangan,
+--     atau blokir apa pun. Mengubah isinya tidak mengubah satu pun hasil
+--     perhitungan di dashboard, verifikasi, maupun rekap.
+--   - Diisi KARYAWAN saat submit, opsional, maksimal 500 karakter.
+--   - Tidak bisa diubah setelah event tersimpan. Koreksi admin memakai
+--     alasan_koreksi yang terpisah, bukan kolom ini.
+
+ALTER TABLE absensi ADD COLUMN keterangan TEXT;

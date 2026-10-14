@@ -1010,3 +1010,61 @@ langsung melonggarkan policy-nya.
 **Dan: dua gejala yang tampak jauh berbeda bisa punya satu sebab.** Logo
 Next.js yang hilang dan hydration mismatch dianggap dua masalah terpisah.
 Keduanya berasal dari satu baris konfigurasi.
+
+---
+
+## 15. M15 — Keterangan absensi (2026-10-14)
+
+### 15a. `ALTER TABLE ... ADD COLUMN` di SQLite — SUDAH DIVERIFIKASI
+
+Migrasi `0003_keterangan_absensi.sql` menambah satu kolom ke tabel `absensi` yang sudah ada
+di produksi. Batasan `ADD COLUMN` dicek langsung ke dokumentasi resmi, **bukan dari ingatan**:
+
+Sumber: https://www.sqlite.org/lang_altertable.html §4 "ALTER TABLE ADD COLUMN"
+(https://www.sqlite.org/lang_altertable.html#altertabaddcol)
+
+| Aturan SQLite | Yang relevan untuk migrasi ini |
+|---|---|
+| Kolom baru **tidak boleh** punya `PRIMARY KEY` atau `UNIQUE` | Dipatuhi — `keterangan TEXT` polos |
+| Tidak boleh default `CURRENT_TIME/DATE/TIMESTAMP` atau ekspresi dalam kurung | Dipatuhi — tidak ada default |
+| Kalau ada `NOT NULL`, harus punya default selain NULL | Tidak dipakai — kolom nullable, jadi tidak ada default |
+| Kalau punya `REFERENCES` dan `foreign_keys` aktif, default harus NULL | Tidak dipakai — kolom tidak punya referensi |
+| Tidak boleh `GENERATED ALWAYS ... STORED` | Dipatuhi |
+| **CHECK pada kolom yang ditambahkan diuji ke SELURUH baris lama**, dan `ADD COLUMN` gagal bila ada yang melanggar (enhancement sejak SQLite 3.37.0, 2021-11-27) | Tidak dipakai — lihat di bawah |
+
+**Keputusan: tidak memasang CHECK panjang** meski SQLite mengizinkan. Alasannya bukan
+ketidakmampuan, tapi konsistensi: `agenda.keterangan`, `agenda_laporan.keterangan`, dan
+`absensi.alasan_koreksi` semuanya `TEXT` polos dengan batas panjang ditegakkan zod di route.
+Batas 500 ditegakkan di `POST /api/absen` (`KETERANGAN_MAKS`), jadi request yang melebihi
+ditolak `400` **sebelum** foto diunggah ke Telegram — tidak ada foto sia-sia di grup.
+
+Catatan operasional: `ALTER TABLE` tanpa constraint hanya mengubah teks skema di
+`sqlite_schema`, jadi waktunya **tidak** bergantung jumlah baris. Semua baris lama otomatis
+bernilai `NULL` dan tidak ada yang perlu ditulis ulang.
+
+### 15b. Bukti lokal tetap bukan bukti Turso (K-42, bukan yang berubah)
+
+Sesuai §3a: migrasi ini diverifikasi pada SQLite lokal (`file:`) lewat seluruh tes M15.
+Sesuai §3c, `ALTER TABLE ADD COLUMN` di libSQL/Turso remote **belum** diverifikasi terpisah.
+Kalau migrasi produksi gagal, jalur yang paling mungkin adalah dukungan DDL libSQL — bukan
+logika kolomnya, yang tidak punya apa pun selain `TEXT`.
+
+### 15c. Tiga jebakan tes yang muncul di M15
+
+Semuanya muncul di milestone ini, dan ketiganya akan muncul lagi:
+
+1. **`-t` dengan pola yang tidak cocok nama tes mana pun tetap keluar "lolos".** Mutasi
+   "hapus kolom Excel" dilaporkan LALUS padahal tesnya **tidak pernah jalan** — nama tesnya
+   `kolom detail tepat 13 dan bernama ...`, polanya `tepat 13 kolom`. Skrip mutasi sekarang
+   menggagalkan diri sendiri kalau tidak ada tes yang benar-benar dieksekusi.
+2. **React 19 menulis `maxLength="500"` dengan huruf besar-kecil aslinya**, bukan
+   `maxlength`. Pola harus tahan huruf besar-kecil — versi lama akan gagal terus dan orang
+   akan mengira aplikasinya yang salah.
+3. **Menambah atribut JSX bisa memecah satu baris jadi beberapa**, dan tes yang menyapu
+   sumber dengan pola `X="..." Y="..."` jadi gagal bukan karena perilakunya berubah. Tiga tes
+   `ui3` gagal begitu. Diperbaiki dengan `\s+`/`[\s\S]{0,200}?` — **bukan** dengan
+   melonggarkan assertion-nya.
+
+Yang tetap sama: `tsc` hijau bukan build hijau — `npm run build` dijalankan terpisah, dan
+halaman karyawan dibuka di browser sungguhan sebelum M15 dianggap selesai (§ "Pelajaran:
+aplikasi ini belum pernah dibuka di browser selama 8 milestone").

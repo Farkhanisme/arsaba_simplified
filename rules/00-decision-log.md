@@ -104,6 +104,7 @@ Ketika pemilik menyetujui sebuah `[USULAN]`, tag-nya dihapus di semua dokumen da
 | K-63 | Laporan agenda masuk periode = **tanggal submit (foto after)**. **Hanya laporan `MENUNGGU`** yang memblokir ekspor. Ini **mengubah K-13**: syarat ekspor jadi tiga. |
 | K-64 | Agenda masuk rekap Excel: sheet baru **`Detail Agenda`** + kolom aggregate di sheet `Ringkasan`. Dashboard menampilkan metrik agenda per toko. |
 | K-65 | **K-32 berlaku untuk agenda**: verifikasi laporan agenda pada periode yang sudah diekspor hanya Super Admin. Sebaliknya, **BR-A9 (tidak berangkat) TIDAK memblokir** pengerjaan agenda — pemilik memutuskan ini. |
+| K-66 | **Keterangan absensi.** Karyawan boleh menulis **teks bebas opsional** (maks **500 karakter**) di modal hasil foto, untuk check-in maupun check-out. Absen **tidak pernah** terblokir atau berubah status karena keterangan. Keterangan **tidak bisa diubah** setelah terkirim. Admin membacanya di kartu Verifikasi dan di sheet `Detail Harian` (kolom baru → BR-R5 jadi **13 kolom**). Keterangan **tidak masuk** caption Telegram. Aturan lengkap: `rules/02` BR-A13. |
 
 > **Catatan K-58 (konsekuensi yang sudah disadari pemilik).** Karena penerima dihitung ulang,
 > memindahkan karyawan (BR-P2) setelah agenda dibuat **berpengaruh pada agenda**: karyawan yang
@@ -118,6 +119,20 @@ Ketika pemilik menyetujui sebuah `[USULAN]`, tag-nya dihapus di semua dokumen da
 > Keputusan "agenda ditugaskan tapi belum dikerjakan" **sengaja tidak** memblokir ekspor,
 > diperlakukan seperti K-33 (peringatan saja) — alasannya, agenda tanpa tanggal target bisa
 > menggantung ekspor selamanya.
+
+> **Catatan K-66 (tiga konsekuensi yang sudah disadari pemilik).**
+> 1. **Keterangan tidak pernah jadi syarat.** Kosong, hanya spasi, atau tidak diisi sama sekali
+>    semuanya diterima. Aturan yang memblokir absen (BR-A9, BR-A5, BR-A10, foto, kuota) **tidak
+>    pernah** membaca kolom ini. Keterangan juga **tidak boleh** dipakai admin sebagai alasan
+>    menyetujui/menolak — keputusan verifikasi tetap murni dari aturan.
+> 2. **Ditempatkan di modal hasil foto** (bukan di halaman utama), jadi teksnya terikat pada
+>    foto yang sedang dikirim. Konsekuensi yang disadari: isi modal harus muat di HP kecil —
+>    karena itu foto dibatasi tinggi dan modal diberi batas tinggi + scroll. Selain itu, saat
+>    kirim **gagal** teks **tidak ikut terhapus** (alasan tidak berubah antarpercobaan), tapi
+>    setelah kirim **berhasil** teks **wajib** dibersihkan supaya tidak diam-diam ikut ke
+>    absen berikutnya.
+> 3. **Tidak bisa diubah setelah terkirim.** Satu jalur ubah saja: koreksi admin, dan itu lewat
+>    `alasan_koreksi` yang terpisah — bukan dengan menulis ulang `keterangan`.
 
 ## B. Usulan teknis (disetujui — K-40)
 

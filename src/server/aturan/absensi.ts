@@ -16,6 +16,27 @@ export function eventAktif(status: string): boolean {
 export const BATAS_CHECKOUT_JAM = 20;
 
 /**
+ * BR-A13 (K-66): batas panjang keterangan absensi. Nilai yang sama dengan
+ * `KETERANGAN_MAKS` agenda (aturan/agenda.ts) — satu angka untuk seluruh
+ * keterangan yang diisi karyawan, supaya tidak ada dua standar di layar.
+ *
+ * Batas ini DITEGAKKAN DI SINI, bukan lewat CHECK di database. Kolom
+ * `absensi.keterangan` sengaja TEXT polos (migrasi 0003), mengikuti preseden
+ * `agenda.keterangan` dan `absensi.alasan_koreksi`.
+ */
+export const KETERANGAN_MAKS = 500;
+
+/**
+ * BR-A13: normalisasi keterangan sebelum disimpan — `trim()`, dan teks kosong
+ * menjadi NULL (bukan string kosong). NULL berarti "karyawan tidak memberi
+ * keterangan", dan itulah yang dipakai semua lapisan di atasnya.
+ */
+export function rapikanKeterangan(mentah: string | undefined): string | null {
+  const teks = mentah?.trim() ?? '';
+  return teks.length > 0 ? teks : null;
+}
+
+/**
  * True bila check-in masih boleh di-check-out sendiri oleh karyawan.
  * Perbandingan string ISO sah karena semua waktu ber-offset +07:00 (rules/04 §5).
  * Patch C-1: check-in bertanggal masa depan ditolak (tidak dianggap terbuka).

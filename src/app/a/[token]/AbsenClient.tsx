@@ -37,6 +37,18 @@
  * rules/05 baris 23 mewajibkan target sentuh minimum 44x44 px. Karena itu
  * `KELAS_SENTUH` menambah tinggi ke 48px lewat className, bukan memakai size
  * bawaan. Jangan dikecilkan tanpa membaca rules/05 §3.
+ *
+ * KETERANGAN (BR-A13, K-66): field teks bebas di dalam modal hasil foto,
+ * opsional, maksimal 500 karakter. Tiga keputusan yang perlu dijaga di sini:
+ *   1. Field-nya SEDANG di modal terkunci, bukan di halaman utama. Konsekuensi
+ *      yang disadari: contents modal harus muat di HP kecil — karena itu foto
+ *      dibatasi `max-h-[45dvh]` dan DialogContent diberi batas tinggi + scroll
+ *      (lihat `<DialogContent className=...>` di bawah).
+ *   2. Teks TIDAK ikut terhapus saat kirim GAGAL. Alasannya tidak berubah
+ *      antarpercobaan, jadi memaksa karyawan mengetik ulang cuma memperlambat.
+ *      `buangFoto()` sengaja tidak menyentuhnya.
+ *   3. Teks HARUS dibersihkan setelah kirim BERHASIL. Kalau tidak, keterangan
+ *      "macet" diam-diam ikut terkirim lagi pada check-out berikutnya.
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
@@ -46,8 +58,11 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { Toaster } from '@/components/ui/sonner';
 import type { InfoAbsen } from '../../../server/absen-info';
+import { KETERANGAN_MAKS } from '../../../server/aturan/absensi';
 import { kompresBlobBrowser } from '../../../lib/kompres';
 
 type StatusLokasi = { keadaan: 'TERSEDIA'; lat: number; lng: number } | { keadaan: 'DITOLAK' | 'GAGAL' | 'BELUM' };
@@ -94,6 +109,10 @@ export default function AbsenClient({ infoAwal }: { infoAwal: InfoAbsen }) {
   const [foto, setFoto] = useState<Blob | null>(null);
   const [pratinjau, setPratinjau] = useState<string | null>(null);
   const [requestId, setRequestId] = useState<string | null>(null);
+  // BR-A13: hidup di sini, bukan di IsiModalFoto — modal di-render ulang tiap
+  // kali foto diambil, jadi state-nya harus dimiliki komponen induk supaya teks
+  // tidak ikut hilang saat foto berganti.
+  const [keterangan, setKeterangan] = useState('');
   const [lokasi, setLokasi] = useState<StatusLokasi>({ keadaan: 'BELUM' });
   const [mengirim, setMengirim] = useState(false);
   // null = belum tahu (tampilkan tombol seperti dulu); false = satu kamera.
@@ -278,6 +297,9 @@ export default function AbsenClient({ infoAwal }: { infoAwal: InfoAbsen }) {
     });
     setFoto(null);
     setRequestId(null);
+    // Keterangan SENGAJA tidak dibersihkan di sini (BR-A13): kalau kirim gagal,
+    // alasan yang sudah diketik masih relevan untuk foto berikutnya.
+    // Pembersihannya ada di jalur sukses `kirim()`, bukan di sini.
   }
 
   async function ambilFoto() {
@@ -350,6 +372,10 @@ export default function AbsenClient({ infoAwal }: { infoAwal: InfoAbsen }) {
       fd.set('token', token);
       fd.set('jenis', info.aksi === 'CHECKOUT' ? 'CHECKOUT' : 'CHECKIN');
       fd.set('foto', new File([hasil.blob], 'absen.jpg', { type: 'image/jpeg' }));
+      // BR-A13: hanya mengirim kalau ada isi. Server tetap Trim dan mengubah
+      // kosong jadi NULL; di sini kita tidak mengirim field kosong sama sekali
+      // supaya request persis sama seperti sebelum fitur ini ada.
+      if (keterangan.trim()) fd.set('keterangan', keterangan.trim());
       if (lokasi.keadaan === 'TERSEDIA') {
         fd.set('lat', String(lokasi.lat));
         fd.set('lng', String(lokasi.lng));
@@ -368,6 +394,9 @@ export default function AbsenClient({ infoAwal }: { infoAwal: InfoAbsen }) {
       }
       buangFoto();
       toast.success(badan.pesan as string);
+      // Wajib BERSIH setelah sukses (BR-A13). Kalau tidak, keterangan ini
+      // akan ikut terkirim lagi pada absen berikutnya tanpa disadari.
+      setKeterangan('');
       await muatUlang();
     } catch {
       buangFoto();
@@ -448,13 +477,23 @@ export default function AbsenClient({ infoAwal }: { infoAwal: InfoAbsen }) {
       {/* Modal hasil foto. Sengaja dikunci: abaikan semua permintaan tutup dari
           klik-luar/Escape — hanya Foto Ulang atau hasil kirim yang menutupnya. */}
       <Dialog open={modalTerbuka} onOpenChange={() => {}}>
-        <DialogContent showCloseButton={false} aria-describedby={undefined}>
+        <DialogContent
+          showCloseButton={false}
+          // Batas tinggi + scroll dipakai HANYA di modal ini. Dialog yang dipakai
+          // admin (tolak/koreksi) tidak ikut berubah karena kelasnya di sini,
+          // bukan di komponen. `dvh` supaya keyboard dan bar browser ikut terhitung
+          // benar di HP — tanpa itu isi modal bisa keluar layar.
+          className="max-h-[85dvh] overflow-y-auto"
+          aria-describedby={undefined}
+        >
           <DialogTitle className="text-base font-medium">Periksa hasil foto</DialogTitle>
           {pratinjau ? (
             <IsiModalFoto
               src={pratinjau}
               aksi={info.aksi}
               mengirim={mengirim}
+              keterangan={keterangan}
+              onUbahKeterangan={setKeterangan}
               onFotoUlang={buangFoto}
               onKirim={kirim}
             />
@@ -474,18 +513,41 @@ export function IsiModalFoto({
   src,
   aksi,
   mengirim,
+  keterangan,
+  onUbahKeterangan,
   onFotoUlang,
   onKirim,
 }: {
   src: string;
   aksi: string;
   mengirim: boolean;
+  keterangan: string;
+  onUbahKeterangan: (nilai: string) => void;
   onFotoUlang: () => void;
   onKirim: () => void;
 }) {
   return (
-    <>
-      <img src={src} alt="Hasil foto absen" className="w-full rounded-lg animate-in fade-in duration-300 motion-reduce:animate-none" />
+    <div className="flex flex-col gap-3">
+      {/* `max-h` + `object-contain`: tanpa ini foto 3:4 memenuhi lebar modal dan
+         keterangan ikut terdorong keluar layar di HP kecil. */}
+      <img
+        src={src}
+        alt="Hasil foto absen"
+        className="max-h-[45dvh] w-full rounded-lg object-contain animate-in fade-in duration-300 motion-reduce:animate-none"
+      />
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor="absen-keterangan" className="text-base">
+          Keterangan (opsional)
+        </Label>
+        <Textarea
+          id="absen-keterangan"
+          rows={2}
+          maxLength={KETERANGAN_MAKS}
+          value={keterangan}
+          onChange={(e) => onUbahKeterangan(e.target.value)}
+          placeholder="Contoh: macet di jalan, atau hal lain."
+        />
+      </div>
       <div className="flex gap-2">
         <Button variant="outline" className={`flex-1 ${KELAS_SENTUH}`} onClick={onFotoUlang} disabled={mengirim}>
           <RotateCcwIcon />Foto Ulang
@@ -494,6 +556,6 @@ export function IsiModalFoto({
           {mengirim ? 'Mengirim…' : aksi === 'CHECKOUT' ? (<><CheckIcon />Absen Check-out</>) : (<><CheckIcon />Absen</>)}
         </Button>
       </div>
-    </>
+    </div>
   );
 }

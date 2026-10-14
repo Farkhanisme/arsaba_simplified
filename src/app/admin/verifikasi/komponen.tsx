@@ -47,6 +47,8 @@ export interface Baris {
   lokasi_status: string;
   status: string;
   alasan_tolak: string | null;
+  /** BR-A13: keterangan dari karyawan. Dibaca admin, tidak dipakai keputusan. */
+  keterangan: string | null;
   keterlambatan_final_menit: number | null;
   alasan_koreksi: string | null;
   keterlambatan: Keterlambatan | null;
@@ -333,6 +335,11 @@ export function KartuVerifikasi({
         <div className="text-xs text-muted-foreground">
           {b.toko_nama} · {tanggalPendek(b.tanggal)} · {jam} WIB
         </div>
+        {b.keterangan ? (
+          // BR-A13. Ditampilkan apa adanya. TIDAK dipakai untuk memutuskan
+          // Setuju/Tolak — keputusan itu tetap murni dari aturan.
+          <div className="text-xs text-muted-foreground">Keterangan karyawan: {b.keterangan}</div>
+        ) : null}
         {b.status === 'DITOLAK' && b.alasan_tolak ? (
           <div className="text-xs text-muted-foreground">Ditolak: {b.alasan_tolak}</div>
         ) : null}

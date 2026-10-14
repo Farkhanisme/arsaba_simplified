@@ -63,6 +63,20 @@ Satu kolom, lebar maksimum ± 480 px, di tengah.
    "Selesai" kembali ke halaman utama. Teks menyebut **jenis** absen, bukan selalu "Check-in":
    untuk check-out berbunyi "Absen checkout berhasil dicatat pukul …".
 
+**Keterangan (BR-A13, K-66):** field teks bebas **opsional** di dalam **modal hasil foto**,
+berlabel "Keterangan (opsional)", placeholder memuat contoh, `maxlength` 500. Menu **tidak**
+pernah menolak absen karena field ini kosong.
+
+- Modal hasil foto **wajib muat di HP kecil**: foto diberi batas tinggi (mis. `max-h-[45dvh]`)
+  dan modal diberi batas tinggi + scroll. Tanpa itu, menambah field apa pun pada modal ini akan
+  mendorong tombol "Absen" keluar layar / tertutup keyboard.
+- Label dan isi field memakai `text-base` (16 px) seperti teks lain di halaman ini.
+- Saat kirim **gagal**, teks keterangan **tidak ikut terhapus** (alasan tidak berubah antarpercobaan).
+  Setelah kirim **berhasil**, teks **wajib** dibersihkan supaya tidak ikut terkirim lagi pada
+  absen berikutnya.
+- Keterangan yang sudah terkirim ditampilkan kembali di daftar "Absen hari ini" supaya karyawan
+  bisa memastikan apa yang terkirim.
+
 **Karyawan tidak pernah mengirim foto mentah.** Kompresi ke JPEG dilakukan **otomatis** di
 dalam browser sebelum dikirim (§3a). Karyawan tidak melihat, tidak memilih, dan tidak perlu
 memahami ukuran, kualitas, maupun resolusi. Tidak ada langkah tambahan untuk karyawan.
@@ -137,6 +151,10 @@ Username, password, tombol Masuk. Pesan gagal generik: "Username atau password s
 - Untuk check-in: kolom **Menit terlambat (final)**, input angka **0 s.d. 1440** (K-54). **Wajib diisi** bila check-in ditandai terlambat oleh sistem; `0` tetap harus diketik eksplisit (K-30). Nilai di luar rentang ditolak — jangan hanya disables Tombol di UI, server juga harus memeriksanya.
 - **Aksi massal:** pilih baris → bar aksi "Setujui terpilih" / "Tolak terpilih". Tolak membuka dialog dengan kolom alasan wajib; satu alasan berlaku untuk semua terpilih.
 - Tolak satuan: dialog alasan wajib.
+- **Keterangan karyawan (BR-A13/K-66)** ditampilkan apa adanya di kartu, dengan awalan
+  "Keterangan karyawan:". Kosong → baris itu **tidak** muncul sama sekali (bukan placeholder).
+  Ditampilkan berdampingan dengan "Ditolak: …", tidak menggantikannya. Admin **membaca** keterangan
+  ini sebagai konteks; Setuju/Tolak **tidak boleh** bergantung padanya.
 - Baris ditandai badge: Dikoreksi (`KOREKSI_ADMIN`), dan indikator "Pasangan": check-in dengan check-out terkait ditampilkan dikelompokkan (karyawan + tanggal).
 - Aksi **Koreksi** per baris/kelompok membuka form: jenis, waktu (tanggal + jam), alasan wajib. Untuk check-in terbuka tersedia tombol cepat "Tambah check-out".
 - Keputusan yang sudah dibuat dapat diubah selama periode belum diekspor; pada periode terekspor hanya Super Admin (K-32/K-36).
@@ -163,7 +181,10 @@ Username, password, tombol Masuk. Pesan gagal generik: "Username atau password s
    - Gagal → merah: tampil jumlah `MENUNGGU` dan jumlah check-in belum check-out, dengan tautan ke Verifikasi (filter terisi). Tombol ekspor **nonaktif**.
    - Peringatan (tidak memblokir ekspor): jumlah karyawan terjadwal tanpa absen dan tanpa penandaan (K-33).
 3. Pratinjau tabel ringkasan (nama, toko, hari hadir, izin, tanpa keterangan, total menit terlambat final).
-4. Tombol **"Unduh Excel (.xlsx)"** (2 sheet: Ringkasan, Detail Harian).
+4. Tombol **"Unduh Excel (.xlsx)"** (3 sheet: Ringkasan, Detail Harian, Detail Agenda).
+   Sheet **Detail Harian** memuat kolom **"Keterangan Karyawan"** (BR-A13/K-66) tepat sebelum
+   "Catatan Koreksi" — **13 kolom** total, sesuai BR-R5 di `rules/02`. Sheet Ringkasan **tidak**
+   ikut memuatnya: ringkasan menghitung angka, keterangan adalah teks per event.
 
 ### 5.7 Data Master (Super Admin)
 - **Toko:** daftar, tambah/ubah nama, nonaktifkan. Tidak ada field lain.

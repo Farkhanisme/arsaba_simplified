@@ -23,7 +23,7 @@ export interface InfoAbsen {
   tanggalPanjang: string;
   jam: string;
   jadwal: { khusus: boolean; slot: { nama: string; jam_mulai: string; jam_selesai: string }[] } | null;
-  riwayat: { jenis: string; waktu: string; status: string; alasan_tolak: string | null }[];
+  riwayat: { jenis: string; waktu: string; status: string; alasan_tolak: string | null; keterangan: string | null }[];
   aksi: 'CHECKIN' | 'CHECKOUT' | 'TIDAK_TERSEDIA';
   alasan: string;
 }
@@ -82,6 +82,9 @@ export async function muatInfoAbsen(token: string): Promise<InfoAbsen | null> {
       waktu: e.waktu.slice(11, 16),
       status: e.status,
       alasan_tolak: e.alasan_tolak,
+      // BR-A13: ditunjukkan kembali ke karyawan supaya ia bisa memastikan
+      // keterangan yang terkirim memang yang ia ketik.
+      keterangan: e.keterangan,
     })),
     aksi,
     alasan,

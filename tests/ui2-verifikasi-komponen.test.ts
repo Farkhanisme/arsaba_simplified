@@ -48,6 +48,7 @@ function baris(ubah: Partial<Baris> = {}): Baris {
     lokasi_status: 'AKURAT',
     status: 'MENUNGGU',
     alasan_tolak: null,
+    keterangan: null,
     keterlambatan_final_menit: null,
     alasan_koreksi: null,
     keterlambatan: { n: 1, slot: { nama: 'pagi', jam_mulai: '07:00', jam_selesai: '15:00' }, selisih: 12, terlambatSistem: true },

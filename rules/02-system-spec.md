@@ -41,6 +41,14 @@ tidak ada aturan `[BELUM DIPUTUSKAN]`.
 - **BR-A10** Batas check-out mandiri untuk check-in terbuka dari tanggal sebelumnya (K-29): **20 jam** sejak `waktu` check-in, dihitung pada waktu check-in + 20 jam. Selama dalam batas, karyawan seesua check-out. Setelah lewat batas, event check-in itu **tidak lagi dianggap terbuka** oleh karyawan (tombol kembali ke "Check-in") dan hanya admin yang dapat menutupnya lewat koreksi manual (BR-K3). Admin tetap dapat melihat dan memperbaiki kapan saja.
 - **BR-A11** Idempotensi: setiap submit membawa `request_id` unik; pengulangan `request_id` yang sama mengembalikan hasil sebelumnya dan tidak membuat record baru.
 - **BR-A12** Toko pada event = toko penempatan karyawan pada tanggal absensi (snapshot, tidak berubah walau karyawan dipindah kemudian). Tidak ada pembatasan lokasi fisik toko.
+- **BR-A13** **Keterangan absensi (K-66).** Field teks bebas **opsional**, maksimal **500 karakter**, diisi karyawan saat submit — berlaku untuk check-in **dan** check-out. Aturan lengkapnya:
+  - **Tidak pernah jadi syarat.** Tidak diisi, diisi kosong, atau diisi hanya spasi semuanya diterima. Aturan pemblokir (BR-A2 foto, BR-A5/A6 kuota & pasangan, BR-A9 tidak berangkat, BR-A10 batas 20 jam) **tidak pernah membaca kolom ini**.
+  - **Tidak memengaruhi hasil apa pun.** Status, `terlambatSistem`, `keterlambatan_final_menit`, hitungan hari hadir, penomoran slot K-28, dan syarat ekspor K-13 semuanya dihitung **tanpa** keterangan.
+  - Disimpan setelah `trim()`; teks kosong menjadi `NULL` (bukan string kosong). Batas 500 ditegakkan di server — request yang melebihi ditolak `400` **sebelum** foto diunggah ke Telegram, jadi tidak ada foto sia-sia.
+  - **Tidak bisa diubah** setelah event tersimpan. Koreksi admin memakai `alasan_koreksi` yang terpisah; jalur itu **tidak** menulis ulang `keterangan`.
+  - **Tidak masuk** caption Telegram. Caption tetap composed statis.
+  - Idempotensi BR-A11 tetap berlaku: `request_id` yang sama mengembalikan hasil sebelumnya dan **tidak** menimpa keterangan yang tersimpan.
+  - Admin **membaca** keterangan di kartu Verifikasi dan di sheet `Detail Harian` (BR-R5), tetapi **tidak boleh** memakainya sebagai alasan menyetujui/menolak.
 
 ## 4. Aturan verifikasi
 
@@ -149,7 +157,7 @@ untuk sebuah CHECKIN c dari karyawan K pada tanggal T:
   diblokir dan sistem menampilkan jumlah + tautan ke daftar verifikasi yang terfilter.
 - **BR-R3** Karyawan terjadwal tanpa absen dan tanpa penandaan: **peringatan saja**, tidak memblokir ekspor (K-33).
 - **BR-R4** **Sheet "Ringkasan"** (satu baris per karyawan per toko dalam periode): nama karyawan, toko, hari hadir (BR-H1), hari izin, hari tanpa keterangan, total menit terlambat final.
-- **BR-R5** **Sheet "Detail Harian"** (satu baris per pasangan/event, per tanggal): tanggal, karyawan, toko, slot jadwal acuan, waktu check-in, waktu check-out, status check-in, status check-out, selisih sistem (menit), keterlambatan final (menit), penandaan (jenis + catatan), catatan koreksi.
+- **BR-R5** **Sheet "Detail Harian"** (satu baris per pasangan/event, per tanggal): tanggal, karyawan, toko, slot jadwal acuan, waktu check-in, waktu check-out, status check-in, status check-out, selisih sistem (menit), keterlambatan final (menit), penandaan (jenis + catatan), **keterangan karyawan** (BR-A13/K-66 — kolom kedua belas; satu sel per baris pasangan, jadi check-in didahulukan dan check-out jadi cadangan, sama seperti `catatan_koreksi`), catatan koreksi. **Tepat 13 kolom.**
 - **BR-R6** Setiap ekspor mencatat baris `log_ekspor` (pelaku, waktu, rentang, toko) dan audit log.
 - **BR-R7** Waktu di Excel ditampilkan WIB.
 - **BR-R8** Perubahan data pada tanggal/toko yang sudah masuk `log_ekspor` (verifikasi BR-V6, koreksi BR-K6, penandaan BR-X4, jadwal BR-J9) **hanya boleh oleh Super Admin**, tercatat di audit log (K-32). Admin biasa mendapat penolakan.

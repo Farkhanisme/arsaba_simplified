@@ -57,7 +57,15 @@ describe('tombol halaman absen punya ikon Lucide', () => {
 
   it('isi modal Foto Ulang dan Absen merender svg', () => {
     const html = render(
-      h(IsiModalFoto, { src: 'blob:x', aksi: 'CHECKIN', mengirim: false, onFotoUlang: () => {}, onKirim: () => {} }),
+      h(IsiModalFoto, {
+        src: 'blob:x',
+        aksi: 'CHECKIN',
+        mengirim: false,
+        keterangan: '',
+        onUbahKeterangan: () => {},
+        onFotoUlang: () => {},
+        onKirim: () => {},
+      }),
     );
     expect(html).toContain('Foto Ulang');
     expect(html).toContain('>Absen<');

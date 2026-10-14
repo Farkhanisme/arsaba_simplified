@@ -90,7 +90,7 @@ function variantStatus(status: string): 'default' | 'secondary' | 'destructive' 
   return 'default';
 }
 
-export function DaftarRiwayat({ riwayat }: { riwayat: { jenis: string; waktu: string; status: string; alasan_tolak: string | null }[] }) {
+export function DaftarRiwayat({ riwayat }: { riwayat: { jenis: string; waktu: string; status: string; alasan_tolak: string | null; keterangan: string | null }[] }) {
   if (riwayat.length === 0) return <p className="text-base text-muted-foreground">Belum ada absen hari ini.</p>;
   const labelStatus = (s: string) => (s === 'MENUNGGU' ? 'Menunggu' : s === 'DISETUJUI' ? 'Disetujui' : 'Ditolak');
   return (
@@ -102,6 +102,7 @@ export function DaftarRiwayat({ riwayat }: { riwayat: { jenis: string; waktu: st
               {r.jenis === 'CHECKIN' ? 'Check-in' : 'Check-out'} · {r.waktu} WIB
             </span>
             <Badge variant={variantStatus(r.status)}>{labelStatus(r.status)}</Badge>
+            {r.keterangan ? <p className="w-full text-base text-muted-foreground">Keterangan: {r.keterangan}</p> : null}
             {r.status === 'DITOLAK' && r.alasan_tolak ? (
               <p className="w-full text-base text-muted-foreground">Ditolak: {r.alasan_tolak}</p>
             ) : null}

@@ -237,6 +237,7 @@ export interface BarisDetail {
   selisih_sistem: number | null;
   final_menit: number | null;
   penandaan: string | null;
+  keterangan: string | null;
   catatan_koreksi: string | null;
 }
 
@@ -261,22 +262,23 @@ export async function barisDetail(filter: FilterRekap, ex: Executor): Promise<Ba
   syaringToko('a.toko_id', filter.tokoId, sCi, aCi);
   const ci = await ex.execute({
     sql: `SELECT a.id, a.karyawan_id, k.nama AS karyawan_nama, a.toko_id, o.nama AS toko_nama, a.tanggal,
-      a.waktu, a.status, a.keterlambatan_final_menit, a.alasan_koreksi
+      a.waktu, a.status, a.keterlambatan_final_menit, a.alasan_koreksi, a.keterangan
       FROM absensi a JOIN karyawan k ON k.id = a.karyawan_id JOIN toko o ON o.id = a.toko_id
       WHERE ${sCi.join(' AND ')} ORDER BY a.tanggal ASC, a.waktu ASC, a.id ASC`,
     args: aCi,
   });
   type BarisCi = {
     id: number; karyawan_id: number; karyawan_nama: string; toko_id: number; toko_nama: string;
-    tanggal: string; waktu: string; status: string; keterlambatan_final_menit: number | null; alasan_koreksi: string | null;
+    tanggal: string; waktu: string; status: string; keterlambatan_final_menit: number | null;
+    alasan_koreksi: string | null; keterangan: string | null;
   };
   const keluar: BarisDetail[] = [];
   for (const c of ci.rows as unknown as BarisCi[]) {
     const co = await ex.execute({
-      sql: `SELECT waktu, status, alasan_koreksi FROM absensi WHERE checkin_id = ? AND jenis = 'CHECKOUT' ORDER BY CASE WHEN status <> 'DITOLAK' THEN 0 ELSE 1 END, id DESC LIMIT 1`,
+      sql: `SELECT waktu, status, alasan_koreksi, keterangan FROM absensi WHERE checkin_id = ? AND jenis = 'CHECKOUT' ORDER BY CASE WHEN status <> 'DITOLAK' THEN 0 ELSE 1 END, id DESC LIMIT 1`,
       args: [c.id],
     });
-    const coRow = co.rows[0] as unknown as { waktu: string; status: string; alasan_koreksi: string | null } | undefined;
+    const coRow = co.rows[0] as unknown as { waktu: string; status: string; alasan_koreksi: string | null; keterangan: string | null } | undefined;
 
     const semua = await checkinUntukHitungN(c.karyawan_id, c.tanggal, ex);
     const n = hitungN(semua, c.id);
@@ -302,6 +304,12 @@ export async function barisDetail(filter: FilterRekap, ex: Executor): Promise<Ba
       selisih_sistem: selisih,
       final_menit: c.keterlambatan_final_menit,
       penandaan: tdRow ? `${tdRow.jenis === 'IZIN' ? 'Izin' : 'Tanpa Keterangan'}${tdRow.catatan ? `: ${tdRow.catatan}` : ''}` : null,
+      // BR-A13: satu sel untuk satu baris pasangan, jadi ikut aturan yang
+      // sudah dipakai kolom sebelahnya (catatan_koreksi): check-in didahulukan,
+      // check-out jadi cadangan. Kalau keduanya punya teks BERBEDA, yang
+      // check-in yang tampil — sama seperti catatan koreksi. Jangan diubah
+      // jadi "digabung" tanpa keputusan pemilik baru.
+      keterangan: c.keterangan ?? coRow?.keterangan ?? null,
       catatan_koreksi: c.alasan_koreksi ?? coRow?.alasan_koreksi ?? null,
     });
   }

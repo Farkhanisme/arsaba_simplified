@@ -36,6 +36,7 @@ const HEADER_DETAIL = [
   'Selisih Sistem (menit)',
   'Keterlambatan Final (menit)',
   'Penandaan',
+  'Keterangan Karyawan',
   'Catatan Koreksi',
 ];
 
@@ -52,7 +53,7 @@ const HEADER_DETAIL_AGENDA = [
   'Diverifikasi Oleh',
 ];
 
-/** Tepat 12 kolom sesuai BR-R5 — dijaga tes baca-balik. */
+/** Tepat 13 kolom sesuai BR-R5 (12 + BR-A13) — dijaga tes baca-balik. */
 export function kolomDetail(): string[] {
   return [...HEADER_DETAIL];
 }
@@ -100,6 +101,7 @@ export async function buatWorkbook(
       d.selisih_sistem,
       d.final_menit,
       d.penandaan,
+      d.keterangan,
       d.catatan_koreksi,
     ]);
   }

@@ -161,6 +161,7 @@ CREATE TABLE absensi (
   lokasi_status TEXT NOT NULL CHECK (lokasi_status IN ('TERSEDIA','DITOLAK','GAGAL','TIDAK_ADA')),
   status TEXT NOT NULL DEFAULT 'MENUNGGU' CHECK (status IN ('MENUNGGU','DISETUJUI','DITOLAK')),
   alasan_tolak TEXT,
+  keterangan TEXT,                                -- BR-A13/K-66, lihat catatan di bawah
   diverifikasi_oleh INTEGER REFERENCES pengguna_admin(id),
   diverifikasi_at TEXT,
   keterlambatan_final_menit INTEGER CHECK (keterlambatan_final_menit IS NULL OR keterlambatan_final_menit >= 0),
@@ -183,6 +184,23 @@ CREATE INDEX idx_absensi_checkin ON absensi(checkin_id);
 -- maksimal satu CHECKOUT aktif per CHECKIN
 CREATE UNIQUE INDEX uq_checkout_aktif_per_checkin
   ON absensi(checkin_id) WHERE jenis = 'CHECKOUT' AND status <> 'DITOLAK';
+
+-- **`absensi.keterangan` (BR-A13/K-66) ditambahkan lewat migrasi `0003`, bukan
+-- ada di `0001_init.sql`.** `0001_init.sql` tidak diubah sama sekali (md5
+-- `466a7b1a…`) — file itu sudah pernah dijalankan di database produksi, jadi
+-- menyuntingnya tidak akan pernah bersifat retroaktif di sana.
+-- Empat keputusan yang disengaja:
+--   1. **Tanpa CHECK panjang.** Batas 500 ditegakkan di route (zod), persis seperti
+--      `agenda.keterangan` dan `absensi.alasan_koreksi`. Semua baris lama otomatis
+--      bernilai NULL, jadi tidak ada data yang perlu diperiksa ulang.
+--   2. **Tanpa index.** Tidak pernah dipakai untuk mencari atau menyaring — admin
+--      membacanya per event, bukan menelusurinya. Index di sini hanya menambah
+--      biaya tulis pada tabel yang paling sering ditulis.
+--   3. **Tidak ada kolom turunan.** Tidak ada `terlambat_final` yang bergantung
+--      keterangan, tidak ada `hadir` yang bergantung keterangan. Kalau nanti ada,
+--      itu keputusan baru.
+--   4. **Tidak bisa diedit.** Tidak ada route yang menulis ulang kolom ini;
+--      satu-satunya tulisan adalah `INSERT` saat karyawan submit.
 
 CREATE TABLE ketidakhadiran (
   id INTEGER PRIMARY KEY AUTOINCREMENT,

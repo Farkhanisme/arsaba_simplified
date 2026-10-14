@@ -42,8 +42,8 @@ function sumber(nama: string): string {
 }
 
 const RIWAYAT = [
-  { jenis: 'CHECKIN', waktu: '07:05', status: 'DISETUJUI', alasan_tolak: null },
-  { jenis: 'CHECKOUT', waktu: '15:02', status: 'DITOLAK', alasan_tolak: 'Foto tidak terbaca.' },
+  { jenis: 'CHECKIN', waktu: '07:05', status: 'DISETUJUI', alasan_tolak: null, keterangan: null },
+  { jenis: 'CHECKOUT', waktu: '15:02', status: 'DITOLAK', alasan_tolak: 'Foto tidak terbaca.', keterangan: null },
 ];
 
 describe('sapuansumber: tidak ada font kecil di halaman karyawan', () => {
