@@ -234,6 +234,33 @@ dokumen; tugas agen adalah **menerjemahkan dokumen menjadi kode tanpa mengarang 
   `keterlambatan_final_menit`, blokir BR-A9, dan idempotensi BR-A11 semuanya diuji dengan
   keterangan terisi. Sheet "Detail Harian" jadi **13 kolom** (BR-R5 direvisi).
   1032 tes; 10 mutasi semuanya tertangkap.
+- **M16 selesai (2026-10-15): sheet kalender per karyawan di ekspor Excel.** `K-68` +
+  `BR-R9`. Berkas baru `server/aturan/kalender.ts` (fungsi murni: `klasifikasiSel()`,
+  `susunKalenderKaryawan()`), `kalenderPeriode()` + `susunKalender()` di `repo/rekap.ts`,
+  penulis sheet + `namaSheetKalender()` + `WARNA_SEL` di `server/ekspor.ts`, dan
+  `tests/m16-kalender-ekspor.test.ts` (19 tes). Aritmetika tanggal **tidak ditulis ulang** —
+  memakai `awalMinggu()`/`rentangTanggal()` dari `aturan/jadwal.ts` (pola `Date.UTC`+`getUTC*`).
+  Data demo: 26 karyawan → workbook berisi **29 sheet** (3 tetap + 26 kalender).
+  Sifat yang dijaga tes: `DITOLAK` tidak pernah sampai ke kalender (disaring di SQL) ·
+  **terlambat ditentukan angka FINAL `keterlambatan_final_menit > 0`, bukan selisih sistem**
+  (diuji dua arah: terlambat sistem tapi final NULL → hijau; tak terlambat sistem tapi final
+  25 → oranye) · jumlah hari `HADIR`+`TERLAMBAT` di kalender **sama persis** dengan kolom
+  `Hari Hadir` di Ringkasan.
+- **Dua jebakan M16 yang harus diingat.** (a) **`skipped` bukan `passed`.** Tes M16 versi
+  pertama gagal di `beforeAll` (penempatan ganda melanggar `uq_penempatan_terbuka`) dan 11 tes
+  dilaporkan **skipped** sementara 8 tes lain hijau — kalau hanya membaca baris ringkasan, itu
+  terlihat "tes sebagian lulus". Sama seperti jebakan `vitest -t` di §M15(a): **periksa
+  jumlah `skipped`** setiap kali menjalankan satu berkas tes. (b) **Ekspektasi tes bisa salah
+  dan tes tetap hijau.** Dua tes M16 gagal bukan karena bug: (1) jumlah sheet dihitung dari
+  *nama unik*, padahal dua karyawan bernama sama memang mendapat **dua** sheet (yang dibedakan
+  akhiran) — sheet per **karyawan_id**, bukan per nama; (2) koordinat sel hard-code menebak
+  pekan yang salah, dan teks yang dibandingkan adalah hasil **sanitasi** nama, bukan awalan
+  nama mentah. Perbaikannya adalah mengoreksi ekspektasi, **bukan** melonggarkan assertion.
+- **Aturan M16 yang tidak bisa dibuktikan dari file jadi.** Sel `PARSIAL` (check-in
+  `DISETUJUI` tanpa check-out) **tidak pernah muncul di file .xlsx yang diunduh**, karena itu
+  check-in terbuka dan BR-R2 memblokir ekspor. Aturannya tetap ditulis dan diuji lewat
+  fungsi murni + `susunRekap()` (jalur yang tetap jalan saat ekspor diblokir). Detailnya
+  `rules/OPEN_QUESTIONS.md` **B-24**.
 - **Tiga jebakan M15 yang akan applicable lagi (semuanya sudah tercatat di `NOTES.md` §15c):**
   (a) **`vitest -t` dengan pola yang tidak cocok nama tes mana pun tetap terlihat "lalus"**
   — tesnya tidak pernah jalan. Mutasi "hapus kolom Excel" sempat dilaporkan LALUS karena
@@ -482,6 +509,7 @@ Tidak ada yang terblokir — kolom keputusan menunjukkan keputusan yang dipakai.
 | M13 | Agenda — verifikasi admin + penguncian periode terekspor | K-61, K-65 | **SELESAI** 2026-10-08 |
 | M14 | Agenda — rekap Excel (sheet `Detail Agenda`), blokir ekspor, dashboard | K-63, K-64 | **SELESAI** 2026-10-08 · 942 tes |
 | M15 | **Keterangan absensi** — teks bebas opsional di modal hasil foto (maks 500), tampil di kartu Verifikasi + kolom Excel ke-13 | K-66, BR-A13 | **SELESAI** 2026-10-14 · 1032 tes |
+| M16 | **Sheet kalender per karyawan di ekspor Excel** — grid mingguan Sen–Min, jam check-in/check-out di setiap sel, warna hadir/terlambat/izin/tanpa keterangan | K-68, BR-R9 | **SELESAI** 2026-10-15 · 1090 tes |
 | UI-5A | **Batch A — 4 celah `rules/05`**: not-found karyawan, 404 root, `error.tsx` + `global-error.tsx`, font ≥16px karyawan | `rules/05` §1.4, §2, K-24 | **SELESAI** 2026-10-12 · 972 tes |
 | UI-5B | Header lengket di 3 tabel panjang + halaman akar (BUG-UI-01) | `rules/05` §2 | **SELESAI** 2026-10-12 · 983 tes |
 | UI-5C | `loading.tsx` (transisi rute) + judul halaman di header | `rules/05` §1.4 | **SELESAI** 2026-10-12 · 1004 tes |

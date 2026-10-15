@@ -205,7 +205,9 @@ Username, password, tombol Masuk. Pesan gagal generik: "Username atau password s
    - Gagal → merah: tampil jumlah `MENUNGGU` dan jumlah check-in belum check-out, dengan tautan ke Verifikasi (filter terisi). Tombol ekspor **nonaktif**.
    - Peringatan (tidak memblokir ekspor): jumlah karyawan terjadwal tanpa absen dan tanpa penandaan (K-33).
 3. Pratinjau tabel ringkasan (nama, toko, hari hadir, izin, tanpa keterangan, total menit terlambat final).
-4. Tombol **"Unduh Excel (.xlsx)"** (3 sheet: Ringkasan, Detail Harian, Detail Agenda).
+4. Tombol **"Unduh Excel (.xlsx)"** (3 sheet tetap: Ringkasan, Detail Harian, Detail Agenda —
+   ditambah **satu sheet kalender per karyawan** sesuai K-68/BR-R9; sheet kalender tidak
+   muncul di daftar sheet tetap dan tidak menambah kolom ke sheet mana pun).
    Sheet **Detail Harian** memuat kolom **"Keterangan Karyawan"** (BR-A13/K-66) tepat sebelum
    "Catatan Koreksi" — **13 kolom** total, sesuai BR-R5 di `rules/02`. Sheet Ringkasan **tidak**
    ikut memuatnya: ringkasan menghitung angka, keterangan adalah teks per event.

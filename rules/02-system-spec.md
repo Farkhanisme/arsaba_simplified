@@ -161,6 +161,40 @@ untuk sebuah CHECKIN c dari karyawan K pada tanggal T:
 - **BR-R6** Setiap ekspor mencatat baris `log_ekspor` (pelaku, waktu, rentang, toko) dan audit log.
 - **BR-R7** Waktu di Excel ditampilkan WIB.
 - **BR-R8** Perubahan data pada tanggal/toko yang sudah masuk `log_ekspor` (verifikasi BR-V6, koreksi BR-K6, penandaan BR-X4, jadwal BR-J9) **hanya boleh oleh Super Admin**, tercatat di audit log (K-32). Admin biasa mendapat penolakan.
+- **BR-R9** **Sheet kalender per karyawan (K-68).** Setelah tiga sheet tetap, workbook menambah **satu
+  sheet untuk setiap karyawan** yang sudah ada di sheet `Ringkasan` (cakupan BR-R4, bukan semua
+  karyawan aktif), bernama **nama karyawan**.
+  - **Bentuk:** gridmingguan — **baris = pekan, kolom = Senin–Minggu** (`Senin` kolom pertama).
+    **Seluruh hari dalam rentang filter ikut tampil**, termasuk hari tanpa data apa pun. Sel di luar
+    rentang filter (awal/pekan terakhir) tampil sebagai sel kosong.
+  - **Isi sel:** baris pertama **tanggal `dd/mm`**, lalu **satu baris per pasangan**: `HH:mm–HH:mm`.
+    Maksimal **2 baris** (kuota K-27). Check-out yang tidak ada tampil sebagai jam check-in saja.
+    Jam ditulis **apa adanya** — check-out yang jatuh lewat tengah malam tetap ditulis jamnya
+    (mis. `00:30`), sama seperti kolom `Waktu Check-out` di sheet `Detail Harian`.
+  - **Yang TIDAK tampil:** event berstatus `DITOLAK` disembunyikan dari kalender (masih terlihat di
+    `Detail Harian`). Check-in `DISETUJUI` yang pasangannya tidak lengkap tetap **tampil jamnya**
+    dengan sel berwarna putih.
+  - **Klasifikasi sel (hanya satu yang berlaku, urut dari atas):** hari di luar rentang · hari
+    berpenandaan (`Izin` / `Tanpa Keterangan`) · ada pasangan lengkap `DISETUJUI`/`DISETUJUI`
+    → **Hadir**, dan oranye bila `keterlambatan_final_menit > 0` (**angka FINAL** BR-L3, bukan
+    selisih sistem M7) · ada check-in tampil tanpa pasangan lengkap → **Putih** · selain itu kosong.
+  - **Warna sel:** Hadir hijau muda `#E2EFDA` · Terlambat oranye `#FCE4D6` · Izin biru `#DDEBF7` ·
+    Tanpa Keterangan merah muda `#FFC7CE` · di luar rentang abu `#F2F2F2` · kosong dan pasangan
+    setengah **putih**. Legenda warna dicetak di tiap sheet.
+  - **Baris awal tiap sheet:** nama karyawan · periode + toko (bisa lebih dari satu toko bila
+    karyawan berpindah di tengah periode) · legenda · header hari · grid.
+  - Sheet kalender bersifat **tambahan baca-saja**. Ia tidak menambah kolom sheet yang sudah ada,
+    tidak menambah syarat ekspor (BR-R2 tetap tiga syarat), dan tidak memengaruhi apa pun yang
+    sudah ada — `kolomDetail()` tetap **13 kolom**.
+
+> **Catatan BR-R9 (sel `PARSIAL` tidak bisa muncul di file yang diekspor).** Aturan "check-in
+> `DISETUJUI` tampil, check-out tidak" kedengarannya masuk akal, tapi **check-in tanpa check-out
+> aktif adalah check-in terbuka**, dan BR-R2 memblokir ekspor selama ada satu pun. Artinya pada
+> file .xlsx yang benar-benar diunduh, kasus `PARSIAL` **tidak pernah terjadi**. Aturannya tetap
+> ditulis dan tetap diuji — lewat fungsi murni dan lewat `susunRekap()` yang juga jalan saat
+> ekspor **diblokir** — supaya kalau BR-R2 someday berubah, kalender tetap punya perilaku yang
+> ditentukan, bukan diam-diam menampilkan jam check-in tanpa penanda. Ini contoh aturan yang
+> **ada**-nya tidak bisa dibuktikan dari file jadi.
 
 ## 12. Dashboard (hari ini, WIB, per toko)
 

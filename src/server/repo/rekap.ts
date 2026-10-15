@@ -10,6 +10,12 @@ import { serialisasiWIB } from '../waktu';
 import { menitDalamHari } from '../waktu';
 import { pilihSlot, hitungN, hitungSelisih } from '../aturan/keterlambatan';
 import { hitungHariHadir, rekapKaryawan, hitungPeringatan, type KartuRingkasan } from '../aturan/rekap';
+import {
+  susunKalenderKaryawan,
+  type KalenderKaryawan,
+  type PasanganKalender,
+} from '../aturan/kalender';
+import type { JenisTidakBerangkat } from '../aturan/ketidakhadiran';
 import { bacaAmbang } from './pengaturan';
 import { jadwalPadaTanggal } from './absensi';
 import { checkinUntukHitungN } from './verifikasi';
@@ -241,6 +247,120 @@ export interface BarisDetail {
   catatan_koreksi: string | null;
 }
 
+/**
+ * Data mentah sheet kalender (K-68/BR-R9), BUKAN grid — pengelompokan ke
+ * pekan/pekan milik fungsi murni `aturan/kalender.ts`.
+ *
+ * Dua bentuk data yang berbeda sengaja dipisah di sini:
+ *   - `kehadiran`: check-in berstatus <> DITOLAK. Event DITOLAK tidak pernah
+ *     ikut (BR-R9: disembunyikan dari kalender, masih ada di `Detail Harian`).
+ *   - `penandaan`: hari izin/tanpa keterangan, termasuk yang TIDAK punya
+ *     absensi sama sekali — itu sebabnya butuh query sendiri, bukan hasil
+ *     scan `barisDetail`.
+ *
+ * `checkout_waktu` diambil dari check-out AKTIF (`status <> 'DITOLAK'`) yang
+ * terakhir. Subquery dipakai supaya satu check-in dengan beberapa check-out
+ * tidak menggandakan baris.
+ */
+export interface BarisKehadiranKalender {
+  karyawan_id: number;
+  tanggal: string;
+  pasangan: PasanganKalender[];
+}
+
+export interface BarisPenandaanKalender {
+  karyawan_id: number;
+  tanggal: string;
+  jenis: JenisTidakBerangkat;
+}
+
+export interface DataKalender {
+  kehadiran: BarisKehadiranKalender[];
+  penandaan: BarisPenandaanKalender[];
+}
+
+/** Data kalender dari filter yang sama, satu query per bentuk data. */
+export async function kalenderPeriode(filter: FilterRekap, ex: Executor): Promise<DataKalender> {
+  const sCi: string[] = ["ci.jenis = 'CHECKIN'", "ci.status <> 'DITOLAK'", 'ci.tanggal BETWEEN ? AND ?'];
+  const aCi: (string | number | null)[] = [filter.dari, filter.sampai];
+  syaringToko('ci.toko_id', filter.tokoId, sCi, aCi);
+  const ci = await ex.execute({
+    sql: `SELECT ci.karyawan_id AS karyawan_id, ci.tanggal AS tanggal, ci.waktu AS waktu,
+        ci.keterlambatan_final_menit AS final_menit,
+        (SELECT co.waktu FROM absensi co WHERE co.checkin_id = ci.id AND co.jenis = 'CHECKOUT' AND co.status <> 'DITOLAK'
+          ORDER BY co.id DESC LIMIT 1) AS waktu_co
+      FROM absensi ci WHERE ${sCi.join(' AND ')} ORDER BY ci.tanggal ASC, ci.waktu ASC, ci.id ASC`,
+    args: aCi,
+  });
+  type BarisCiKalender = {
+    karyawan_id: number;
+    tanggal: string;
+    waktu: string;
+    final_menit: number | null;
+    waktu_co: string | null;
+  };
+  const kehadiran: BarisKehadiranKalender[] = [];
+  for (const c of ci.rows as unknown as BarisCiKalender[]) {
+    const pasangan = {
+      checkin: formatJam(c.waktu),
+      checkout: c.waktu_co === null ? null : formatJam(c.waktu_co),
+      final_menit: c.final_menit,
+    };
+    // Check-in sudah diurutkan waktu ASC, id ASC, jadi pasangan di dalam satu
+    // tanggal otomatis kronologis tanpa diurutkan ulang.
+    const terakhir = kehadiran[kehadiran.length - 1];
+    if (terakhir && terakhir.karyawan_id === c.karyawan_id && terakhir.tanggal === c.tanggal) {
+      terakhir.pasangan.push(pasangan);
+    } else {
+      kehadiran.push({ karyawan_id: c.karyawan_id, tanggal: c.tanggal, pasangan: [pasangan] });
+    }
+  }
+
+  const sTd: string[] = ['tanggal BETWEEN ? AND ?'];
+  const aTd: (string | number | null)[] = [filter.dari, filter.sampai];
+  syaringToko('toko_id', filter.tokoId, sTd, aTd);
+  const td = await ex.execute({
+    sql: `SELECT karyawan_id, tanggal, jenis FROM ketidakhadiran WHERE ${sTd.join(' AND ')} ORDER BY tanggal ASC, id ASC`,
+    args: aTd,
+  });
+  const penandaan = td.rows as unknown as BarisPenandaanKalender[];
+
+  return { kehadiran, penandaan };
+}
+
+/**
+ * Satu sheet kalender per karyawan yang ada di `ringkasan` (cakupan BR-R4),
+ * bukan semua karyawan aktif (K-68). Urutan mengikuti `ringkasan` supaya
+ * sheet-nya urut seperti tabel Ringkasan.
+ */
+export async function susunKalender(
+  filter: FilterRekap,
+  ringkasan: KartuRingkasan[],
+  ex: Executor,
+): Promise<KalenderKaryawan[]> {
+  const data = await kalenderPeriode(filter, ex);
+  const urut: KartuRingkasan[] = [];
+  const sudah = new Set<number>();
+  for (const r of ringkasan) {
+    if (sudah.has(r.karyawan_id)) continue;
+    sudah.add(r.karyawan_id);
+    urut.push(r);
+  }
+  return urut.map((r) =>
+    susunKalenderKaryawan({
+      dari: filter.dari,
+      sampai: filter.sampai,
+      karyawan_id: r.karyawan_id,
+      karyawan_nama: r.karyawan_nama,
+      // Karyawan berpindah toko di tengah periode muncul di >1 baris Ringkasan;
+      // sheet-nya tetap satu, jadi nama toko digabung.
+      toko_nama: ringkasan.filter((x) => x.karyawan_id === r.karyawan_id).map((x) => x.toko_nama),
+      kehadiran: data.kehadiran,
+      penandaan: data.penandaan,
+    }),
+  );
+}
+
 function formatTanggal(tanggal: string): string {
   const [y, m, d] = tanggal.split('-');
   return `${d}/${m}/${y}`;
@@ -355,7 +475,10 @@ export async function susunRekap(filter: FilterRekap, ex: Executor) {
   // BR-G16: sheet "Detail Agenda". Quay dalam hasil yang sama supaya pratinjau dan
   // ekspor tidak bisa melihat jumlah agenda yang berbeda (anti-B-19).
   const detailAgenda = await barisDetailAgenda(filter.dari, filter.sampai, filter.tokoId, ex);
-  return { pemeriksaan, ringkasan, detail, detailAgenda };
+  // K-68/BR-R9: sheet kalender per karyawan. Bao juga dari filter + ringkasan
+  // yang sama, jadi sheet mana pun tidak bisa melihat karyawan/tanggal berbeda.
+  const kalender = await susunKalender(filter, ringkasan, ex);
+  return { pemeriksaan, ringkasan, detail, detailAgenda, kalender };
 }
 
 export type { BarisDetailAgenda };

@@ -119,9 +119,14 @@ export const EKSPOR = guard('ekspor', async (req: NextRequest, ctx) => {
         throw new GalatAturan(409, pesanBlokir(susun.pemeriksaan));
       }
       await catatEkspor(f.filter, ctx.pengguna_id, tx);
-      return { ringkasan: susun.ringkasan, detail: susun.detail, detailAgenda: susun.detailAgenda };
+      return {
+        ringkasan: susun.ringkasan,
+        detail: susun.detail,
+        detailAgenda: susun.detailAgenda,
+        kalender: susun.kalender,
+      };
     });
-    const xlsx = await buatWorkbook(data.ringkasan, data.detail, data.detailAgenda);
+    const xlsx = await buatWorkbook(data.ringkasan, data.detail, data.detailAgenda, data.kalender);
     return new NextResponse(new Uint8Array(xlsx), {
       status: 200,
       headers: {

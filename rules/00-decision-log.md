@@ -106,6 +106,7 @@ Ketika pemilik menyetujui sebuah `[USULAN]`, tag-nya dihapus di semua dokumen da
 | K-65 | **K-32 berlaku untuk agenda**: verifikasi laporan agenda pada periode yang sudah diekspor hanya Super Admin. Sebaliknya, **BR-A9 (tidak berangkat) TIDAK memblokir** pengerjaan agenda — pemilik memutuskan ini. |
 | K-66 | **Keterangan absensi.** Karyawan boleh menulis **teks bebas opsional** (maks **500 karakter**) di modal hasil foto, untuk check-in maupun check-out. Absen **tidak pernah** terblokir atau berubah status karena keterangan. Keterangan **tidak bisa diubah** setelah terkirim. Admin membacanya di kartu Verifikasi dan di sheet `Detail Harian` (kolom baru → BR-R5 jadi **13 kolom**). Keterangan **tidak masuk** caption Telegram. Aturan lengkap: `rules/02` BR-A13. |
 | K-67 | **Navigasi bawah untuk halaman karyawan `/a/[token]`**, menggantikan tab yang tadinya berada di atas. Tepat **DUA item**: **"Absen"** dan **"Agenda"**. Tidak ada item ketiga, tidak ada tombol tengah besar. Alasannya sama seperti alasan tab sejak M12: **satu permukaan link saja** (K-01), dan link yang bocor berarti absen atas nama orang (risiko **D-1**). Navigasi bawah **TIDAK memakai URL** — status tab tetap state lokal di sisi klien seperti sekarang; memindahkannya ke URL adalah fitur baru dan di luar milestone ini. **Halaman admin tidak ikut berubah** — `rules/05` §1.2 (desktop-first) tidak diubah. Aturan rinci ada di `rules/05` §3b. |
+| K-68 | **Sheet kalender per karyawan di ekspor Excel (BR-R9).** Setelah tiga sheet tetap, workbook mendapat **satu sheet per karyawan** yang sudah ada di `Ringkasan`, bernama nama karyawan. Isinya **grid mingguan** (baris = pekan, kolom **Senin–Minggu**) dengan **seluruh hari rentang filter**, dan tiap sel memuat tanggal + **jam check-in/check-out** — jadi kehadiran terbaca seperti kalender, bukan daftar baris. Keputusan yang mengunci bentuknya: 2 pasangan sehari **keduanya tampil** · event `DITOLAK` **disembunyikan** dari kalender · pasangan setengah (check-in `DISETUJUI`, check-out tidak) tetap **tampil jamnya** dengan sel putih · hari izin/tanpa keterangan tampil sebagai teks + warna · **warna terlambat ditentukan `keterlambatan_final_menit > 0` (angka FINAL BR-L3), bukan selisih sistem M7** · check-out lewat tengah malam ditulis **apa adanya** · karyawan yang dapat sheet **ikut cakupan `Ringkasan`**, bukan semua karyawan aktif. Ini murni tambahan tampilan: tidak menambah kolom sheet yang ada (`Detail Harian` tetap **13 kolom**), tidak menambah syarat ekspor (BR-R2 tetap tiga), dan tidak mengubah endpoint mana pun. |
 
 > **Catatan K-67 (apa yang TIDAK diputuskan).** Tiga hal sengaja dibiarkan terbuka dan
 > **tidak boleh diisi sendiri oleh agen**:
@@ -120,6 +121,19 @@ Ketika pemilik menyetujui sebuah `[USULAN]`, tag-nya dihapus di semua dokumen da
 > Batas yang bisa dibuktikan tes untuk navigasi bawah ada di `rules/OPEN_QUESTIONS.md` **B-23**:
 > `renderToStaticMarkup` tidak punya CSS, viewport, maupun keyboard virtual, jadi posisi
 > melekat, perilaku keyboard, dan safe-area **hanya bisa dicek manual di browser**.
+
+> **Catatan K-68 (apa yang TIDAK diputuskan).** Empat hal sengaja dibiarkan terbuka dan
+> **tidak boleh diisi sendiri oleh agen**:
+>
+> 1. **Slot jadwal tidak ditampilkan** di sel kalender — hanya jam check-in/check-out. Menambahnya
+>    berarti keputusan baru.
+> 2. **Catatan penandaan** (`ketidakhadiran.catatan`) tidak ikut di sel; yang tampil hanya teks
+>    "Izin" / "Tanpa Keterangan". Detail lengkapnya tetap ada di `Detail Harian`.
+> 3. **Nama toko** tidak ditampilkan di dalam sel. Nama toko hanya muncul di baris judul sheet. Kalau
+>    karyawan berpindah toko di tengah periode, sel kalender **tidak** memberi tahu hari mana yang
+>    di toko mana.
+> 4. **Halaman kalender di UI** tidak ada. K-68 hanya mengubah isi file yang diunduh, bukan
+>    pratinjau di `/admin/rekap` (pratinjau tetap tabel `Ringkasan`).
 
 > **Catatan K-58 (konsekuensi yang sudah disadari pemilik).** Karena penerima dihitung ulang,
 > memindahkan karyawan (BR-P2) setelah agenda dibuat **berpengaruh pada agenda**: karyawan yang

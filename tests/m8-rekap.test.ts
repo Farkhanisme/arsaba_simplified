@@ -292,7 +292,9 @@ describe('M8 rekap & ekspor', () => {
     const ringkasan = ((await prev.json()).data as { ringkasan: KartuRingkasan[] }).ringkasan;
     const wb = new ExcelJS.Workbook();
     await wb.xlsx.load(bodies[0]);
-    expect(wb.worksheets.map((w) => w.name)).toEqual(['Ringkasan', 'Detail Harian', 'Detail Agenda']);
+    // K-68: setelah tiga sheet tetap ada satu sheet kalender per karyawan. Pada
+    // filter D5/Toko A hanya K12 yang ada, jadi daftar sheet-nya persis empat.
+    expect(wb.worksheets.map((w) => w.name)).toEqual(['Ringkasan', 'Detail Harian', 'Detail Agenda', 'K12']);
     const ws = wb.getWorksheet('Ringkasan')!;
     const dariFile: unknown[][] = [];
     ws.eachRow((row, n) => {

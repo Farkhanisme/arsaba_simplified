@@ -128,7 +128,7 @@ Aplikasi web internal untuk mencatat absensi 26 karyawan di 10 toko. Karyawan ab
 **US-A7 Rekap & ekspor.**
 - Pilih rentang tanggal dan toko (semua/satu), lalu sistem memeriksa syarat K-13.
 - Jika ada `MENUNGGU` atau check-in tanpa check-out: ekspor diblokir dan ditampilkan daftar/tautan ke halaman verifikasi.
-- Jika lolos: pratinjau dan unduh `.xlsx` (2 sheet: Ringkasan, Detail Harian). Ekspor dicatat.
+- Jika lolos: pratinjau dan unduh `.xlsx` (sheet: Ringkasan, Detail Harian, Detail Agenda, dan satu sheet kalender per karyawan — K-68/BR-R9). Ekspor dicatat.
 - Karyawan terjadwal tanpa absen dan tanpa penandaan hanya muncul sebagai **peringatan**, tidak memblokir ekspor (K-33).
 
 **US-A8 Ganti password.**

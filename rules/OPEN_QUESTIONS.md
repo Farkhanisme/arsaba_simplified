@@ -518,4 +518,37 @@ itu. Menambahkannya berarti konten bisa masuk ke bawah notch dan status bar,
 karena itu harus dibarengi `safe-area-inset-top`; itu keputusan baru, bukan
 bagian UI-6, dan **tidak diambil di sini**.
 
-**ID berikutnya: B-24.**
+**ID berikutnya: B-25.**
+
+---
+
+## B-24 — Sel `PARSIAL` (check-in tanpa check-out) tidak bisa muncul di file ekspor
+
+**Status: TEMUAN, tidak memblokir apa pun. Tidak perlu keputusan.**
+
+**Konteks.** Saat mengerjakan M16 (sheet kalender per karyawan, K-68), pemilik
+memutuskan: check-in `DISETUJUI` yang check-out-nya `DITOLAK`/kosong **tetap
+tampil jamnya** dengan sel berwarna putih, bukan disembunyikan.
+
+**Masalah — dan kenapa itu tidak apa-apa.** Check-in tanpa check-out aktif itu
+adalah **check-in terbuka**, dan BR-R2/K-13 **memblokir ekspor selama ada satu
+pun**. Jadi pada file .xlsx yang benar-benar diunduh, kasus itu **tidak pernah
+terjadi**. Kalau bukan karena tes yang memeriksa `susunRekap()` secara langsung
+(jalur yang tetap jalan saat ekspor diblokir), aturan ini akan terlihat "selalu
+benar" tanpa pernah benar-benar diuji.
+
+**Yang dilakukan.** Aturannya tetap ditulis di BR-R9 dan tetap diuji di
+`tests/m16-kalender-ekspor.test.ts` — lewat fungsi murni dan lewat
+`susunRekap()`, BUKAN lewat file .xlsx. Catatan pengikutnya juga ditulis di
+BR-R9 supaya agen berikutnya tidak membuang waktu mencari bug yang tidak ada.
+
+**Pelajaran yang layak disimpan.** Mutasi klasifikasi sel **tertangkap** oleh
+tes murni. Tapi tes yang membaca file jadi **tidak akan pernah** menangkap
+perubahan pada kasus `PARSIAL`, karena kasus itu tidak muncul di file sama
+sekali. Tidak semua aturan bisa dibuktikan lewat jalur yang sama.
+
+**Catatan AGENTS.md yang menyertainya.** Tes M16 yang pertama gagal di
+`beforeAll`-nya karena penempatan ganda melanggar `uq_penempatan_terbuka`, lalu
+**11 tes dilaporkan "skipped"** sementara 8 tes lain tetap hijau. Kalau hanya
+dibaca baris ringkasan, itu terlihat seperti "tes sebagian lulus". Selalu
+periksa jumlah `skipped`, bukan cuma `passed`.

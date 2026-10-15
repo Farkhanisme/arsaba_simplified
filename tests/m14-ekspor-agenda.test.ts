@@ -11,7 +11,7 @@ import { POST as adminAgenda } from '../src/app/api/admin/agenda/route';
 import { PUT as verifikasiAgenda } from '../src/app/api/admin/verifikasi-agenda/[id]/route';
 import { PRATINJAU as rekapPratinjau, PERIKSA as rekapPeriksa, EKSPOR } from '../src/app/api/admin/rekap/rute';
 import { GET as dashboardRoute } from '../src/app/api/admin/dashboard/route';
-import { kolomDetailAgenda } from '../src/server/ekspor';
+import { kolomDetailAgenda, namaSheetKalender } from '../src/server/ekspor';
 import { susunRekap } from '../src/server/repo/rekap';
 
 const DB_PATH = 'data/uji_m14_agenda_ekspor.db';
@@ -228,7 +228,13 @@ describe('M14 rekap, ekspor, dan dashboard agenda', () => {
       expect(res.status).toBe(200);
       const wb = new ExcelJS.Workbook();
       await wb.xlsx.load(await res.arrayBuffer());
-      expect(wb.worksheets.map((w) => w.name)).toEqual(['Ringkasan', 'Detail Harian', 'Detail Agenda']);
+      // K-68: tiga sheet tetap, lalu satu sheet kalender per karyawan cakupan
+      // Ringkasan (urutan sama, nama kembar dibedakan akhiran).
+      const { ringkasan } = await susunRekap({ dari: HARI_INI, sampai: HARI_INI, tokoId: null }, getDb());
+      const dipakai = new Set<string>(['Ringkasan', 'Detail Harian', 'Detail Agenda']);
+      const idUnik = [...new Map(ringkasan.map((r) => [r.karyawan_id, r.karyawan_nama])).values()];
+      const namaSheet = idUnik.map((n) => namaSheetKalender(n, dipakai));
+      expect(wb.worksheets.map((w) => w.name)).toEqual(['Ringkasan', 'Detail Harian', 'Detail Agenda', ...namaSheet]);
 
       const ws = wb.getWorksheet('Detail Agenda')!;
       const header: unknown[] = [];
