@@ -68,9 +68,11 @@ describe('PanelDashboard isi wajib §5.2', () => {
 
   it('kartu memakai Card shadcn: group/card + header + content', () => {
     const html = render(h(PanelDashboard, { data: dataSepuluhToko() }));
-    // 10 kartu toko + 1 kartu antrean = 11.
-    // 10 kartu toko + 2 kartu antrean (absensi dan agenda) = 12.
-    expect(html.match(/class="[^"]*(?<![-\w])group\/card(?![-\w])/g) ?? []).toHaveLength(12);
+    // REDESAIN B2f (disetujui pemilik): 10 kartu toko + 2 kartu antrean +
+    // 4 kartu ringkasan = 16. Angka 12 yang lama BUKAN dilonggarkan — ia
+    // diganti karena 4 kartu memang ditambahkan sengaja. Kalau jumlah ini
+    // berubah lagi tanpa kartu baru, tes ini harus gagal.
+    expect(html.match(/class="[^"]*(?<![-\w])group\/card(?![-\w])/g) ?? []).toHaveLength(16);
     expect(html).toContain('data-slot="card-header"');
     expect(html).toContain('data-slot="card-content"');
   });

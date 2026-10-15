@@ -473,13 +473,18 @@ dokumen; tugas agen adalah **menerjemahkan dokumen menjadi kode tanpa mengarang 
   `migrations/` = 0 — hanya presentasi yang berubah. 10 tes baru
   (`tests/ui8b1-fondasi.test.ts`); 4 mutasi semuanya tertangkap. Tata letak halaman
   (Fase B2) sengaja belum — fondasi dulu supaya sumber masalah visual selalu jelas.
-- **UI-8 B2a selesai (2026-10-15): dashboard.** Strip "Ringkasan hari ini" (4 total =
-  jumlah kolom kartu toko, dihitung di render — tanpa fetch/prop/endpoint baru),
-  fraksi `sudah/terjadwal` per kartu toko, dan panah → pada tautan antrean.
-  Strip sengaja BUKAN Card supaya `group/card` tetap 12 sesuai kunci tes UI-2 —
-  dan mutasi "bungkus strip jadi Card" terbukti ditangkap **kedua** tes (baru +
-  lama). 4 tes baru; 3 mutasi tertangkap. Kolom Keputusan `—`: tidak ada keputusan
-  pemilik baru, hanya reorganisasi presentasi angka §5.2 yang sudah wajib ada.
+- **UI-8 B2a selesai lalu DIGANTI B2f (2026-10-15): dashboard.** B2a (strip non-Card
+  demi kunci 12 group/card) adalah contoh pola "mengecilkan cakupan agar tes tidak
+  tersentuh" — dan pemilik menolak hasilnya ("hanya warna"). B2f meredesain
+  sungguhan: 4 kartu ringkasan (Sudah absen + bar, Terlambat, Belum absen, Toko
+  lengkap) + 2 kartu antrean aksi (tautan berupa Button penuh) + 10 kartu toko hero
+  (fraksi + bar + badge pengecualian, ✓ Lengkap bila sempurna) + grafik turun ke
+  bawah. Kunci "12" diperbarui jadi 16 DENGAN alasan tertulis (bukan dihindari);
+  tes B2a yang bertentangan dihapus dengan alasan yang sama. 5 tes baru; 4 mutasi
+  tertangkap — termasuk mutasi "logika lengkap dibalik" yang sempat LOLOS karena
+  fixture satu-toko-sempurna memberi angka sama (1) untuk benar dan terbalik.
+  Perbaikannya: dua toko sempurna (2 lawan 1). Pelajaran: **fixture harus membuat
+  mutasi mengubah angka**, bukan cuma mengubah jalan.
 - **UI-8 B2b selesai (2026-10-15): verifikasi.** Bar aksi massal menempel
   (`sticky bottom-3 z-20` + `shadow-lg` pada Card pembungkus; isi badge + 2 tombol
   tidak berubah) dan foto mini 40px → 56px (src + aria-label tidak berubah).
@@ -605,7 +610,8 @@ Tidak ada yang terblokir — kolom keputusan menunjukkan keputusan yang dipakai.
 | UI-7 | **Jadwal bulanan tidak lagi menggeser halaman** (`min-w-0` pada pembungkus konten sidebar) + toast `sonner` menggantikan `Alert` di halaman jadwal | — | **SELESAI** 2026-10-15 · 10 tes (`rules/24`) |
 | UI-8 | **Audit tampilan Fase A — READ-ONLY**: opsi palet + tipografi + peta token. Keluarannya **dokumen keputusan untuk pemilik**, bukan diff | — | **SELESAI** 2026-10-15 · pemilik pilih B + tipografi 1 (`rules/25`) |
 | UI-8 B1 | **Fondasi: palet B + tipografi 1.** Token `globals.css` + hierarki judul di 4 komponen bersama. Tanpa ubah tata letak halaman, endpoint, atau server | K-69 | **SELESAI** 2026-10-15 · 10 tes baru |
-| UI-8 B2a | **Dashboard: strip ringkasan + fraksi per toko + tautan aksi.** Total dihitung di render dari data yang sama; strip bukan Card (12 group/card utuh); tanpa fetch/prop/endpoint baru | — | **SELESAI** 2026-10-15 · 4 tes baru |
+| UI-8 B2a | ~~Strip ringkasan non-Card~~ → **diganti B2f** (keputusan dibalik sadar, tes lama dihapus dengan alasan) | — | diganti 2026-10-15 |
+| UI-8 B2f | **REDESAIN dashboard (disetujui pemilik).** 4 kartu ringkasan + 2 kartu antrean aksi + 10 kartu toko hero + grafik di bawah. 16 group/card; DataDashboard utuh | — | **SELESAI** 2026-10-15 · 5 tes baru |
 | UI-8 B2b | **Verifikasi: bar aksi massal menempel + foto mini 56px.** Sticky bottom-3 z-20 (di bawah dialog); isi bar (badge + 2 tombol) utuh; src/aria-label foto utuh | — | **SELESAI** 2026-10-15 · 3 tes baru |
 | UI-8 B2c | **Jadwal: pita latar kolom weekend.** Header + sel isi weekend `bg-muted/50`; teks "(Weekend)" tetap (warna bukan satu-satunya pembeda, §1.3) | — | **SELESAI** 2026-10-15 · 2 tes baru |
 | UI-8 B2d | **Rekap: alur 3 langkah eksplisit.** "1. Filter" (judul kartu), "2. Pemeriksaan" + "3. Pratinjau & unduh" (h2 berurutan); isi/href/disabled utuh | — | **SELESAI** 2026-10-15 · 3 tes baru |
