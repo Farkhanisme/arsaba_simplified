@@ -2,9 +2,9 @@
 
 import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import { AksesDitolak, adalahAksesDitolak } from '../komponen';
 import { slotTumpangTindih } from '../../../server/aturan/shift';
+import { toast } from 'sonner';
 import {
   FilterJadwal,
   GridJadwal,
@@ -39,7 +39,6 @@ function HalamanJadwal() {
   const [memuat, setMemuat] = useState(false);
   const [galat, setGalat] = useState<string | null>(null);
   const [aksesDitolak, setAksesDitolak] = useState(false);
-  const [pesan, setPesan] = useState<string | null>(null);
   const [sel, setSel] = useState<{ karyawan_id: number; tanggal: string } | null>(null);
   const [panelMode, setPanelMode] = useState<'lewati' | 'timpa'>('lewati');
   const [panelTemplate, setPanelTemplate] = useState('');
@@ -116,10 +115,10 @@ function HalamanJadwal() {
     });
     const b = await res.json().catch(() => null);
     if (!res.ok) {
-      setPesan((b?.pesan as string) ?? 'Gagal menyimpan.');
+      toast.error((b?.pesan as string) ?? 'Gagal menyimpan.');
       return;
     }
-    setPesan(b.pesan as string);
+    toast.success(b.pesan as string);
     setSel(null);
     setPanelTemplate('');
     muat();
@@ -148,10 +147,10 @@ function HalamanJadwal() {
     });
     const b = await res.json().catch(() => null);
     if (!res.ok) {
-      setPesan((b?.pesan as string) ?? 'Gagal menyimpan.');
+      toast.error((b?.pesan as string) ?? 'Gagal menyimpan.');
       return;
     }
-    setPesan(b.pesan as string);
+    toast.success(b.pesan as string);
     setSel(null);
     setOvBaru(false);
     muat();
@@ -166,10 +165,10 @@ function HalamanJadwal() {
     });
     const b = await res.json().catch(() => null);
     if (!res.ok) {
-      setPesan((b?.pesan as string) ?? 'Gagal mengembalikan.');
+      toast.error((b?.pesan as string) ?? 'Gagal mengembalikan.');
       return;
     }
-    setPesan(b.pesan as string);
+    toast.success(b.pesan as string);
     setSel(null);
     muat();
   }
@@ -182,7 +181,7 @@ function HalamanJadwal() {
     });
     const b = await res.json().catch(() => null);
     if (!res.ok) {
-      setPesan((b?.pesan as string) ?? 'Gagal membuat pratinjau.');
+      toast.error((b?.pesan as string) ?? 'Gagal membuat pratinjau.');
       return;
     }
     setPra(b.data);
@@ -197,10 +196,10 @@ function HalamanJadwal() {
     });
     const b = await res.json().catch(() => null);
     if (!res.ok) {
-      setPesan((b?.pesan as string) ?? 'Gagal menerapkan.');
+      toast.error((b?.pesan as string) ?? 'Gagal menerapkan.');
       return;
     }
-    setPesan(b.pesan as string);
+    toast.success(b.pesan as string);
     setHasilMassal(b.data);
     setPra(null);
     muat();
@@ -209,11 +208,6 @@ function HalamanJadwal() {
   return (
     <div className="flex flex-col gap-4">
       <h1 className="mt-0 text-2xl font-semibold tracking-tight">Jadwal</h1>
-      {pesan ? (
-        <Alert className="border-green-300 bg-green-50 text-green-900 dark:border-green-800 dark:bg-green-950 dark:text-green-100">
-          <AlertDescription>{pesan}</AlertDescription>
-        </Alert>
-      ) : null}
 
       <FilterJadwal tokoId={tokoId} tokoList={tokoList} mode={mode} tanggal={tanggal} onUbah={aturParam} />
 

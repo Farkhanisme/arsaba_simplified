@@ -8,6 +8,7 @@ import TombolKeluar from './tombol-keluar';
 import TautanMenu from './tautan-menu';
 import JudulHalaman from './judul-halaman';
 import PengalihTema from '../pengalih-tema';
+import ToasterAdmin from './ToasterAdmin';
 import {
   Sidebar,
   SidebarContent,
@@ -93,6 +94,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           <JudulHalaman peran={sesi.peran} />
         </header>
         <main className="px-6 pb-6">{children}</main>
+        <ToasterAdmin />
       </SidebarInset>
     </SidebarProvider>
   );
