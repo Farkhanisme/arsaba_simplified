@@ -163,10 +163,11 @@ Username, password, tombol Masuk. Pesan gagal generik: "Username atau password s
 
 ### 5.2 Dashboard
 - Tanggal tetap "Hari ini" (tanpa pemilih tanggal di versi 1).
-- **Satu kartu ringkasan**: 4 stat (Sudah absen + bar · Terlambat · Belum absen · Toko lengkap), total = jumlah kolom.
-- **Satu kartu antrean**: 2 baris aksi (verifikasi absensi + verifikasi agenda), masing-masing jumlah `MENUNGGU` + tombol ke halaman Verifikasi.
-- **Satu kartu tabel 10 baris** (K-70, menggantikan "satu kartu per toko"): kolom Toko (`th scope=row`) · Sudah absen (fraksi + bar) · Status (badge pengecualian atau ✓ Lengkap) · Agenda (teks selebar tampilan kartu lama). Header tabel statis (10 baris muat tanpa scroll). Definisi angka mengikuti `02` §12.
+- **Pita ringkasan (bukan kartu, K-71)**: angka hero tabular (Sudah absen X/Y + bar) + 3 stat (Terlambat · Belum absen · Toko lengkap X/Y), total = jumlah kolom. Satu momen berani halaman ini; sisanya disiplin.
+- **Panel "Perlu tindakan" (K-71)**: HANYA toko bermasalah (`belum>0` atau `terlambat>0`) + antrean yang >0, tiap baris berisi hitungan + deep link terfilter ke halaman verifikasi. Kosong → "Semua toko beres ✓", bukan panel kosong. Teks tombol tanpa panah, sama persis dengan label menu.
+- **Satu kartu tabel 10 baris** (K-70): kolom Toko (`th scope=row`) · Sudah absen (fraksi + bar) · Status (badge pengecualian atau ✓ Lengkap) · Agenda (teks penuh, koma sebagai pemisah — bukan `·`). Baris bermasalah dulu (belum desc, lalu terlambat desc; seri = urutan semula). Header tabel statis (10 baris muat tanpa scroll). Definisi angka mengikuti `02` §12.
 - Kartu berwarna netral; angka "Belum absen" dan "Terlambat" diberi penekanan.
+- Larangan pola template di halaman ini (K-71): kartu identik seragam, meta `·`, dan panah `→` di teks tombol.
 
 ### 5.3 Verifikasi Absensi
 - Filter: toko, rentang tanggal, karyawan, jenis, status (default `Menunggu`), dan chip **"Check-in belum check-out"**.

@@ -43,9 +43,12 @@ describe('PanelDashboard isi wajib §5.2 (amandemen K-70: tabel, bukan kartu tok
     // (semantik tabel yang benar), bukan aria-label per kartu.
     expect(html.match(/<th[^>]*scope="row"/g) ?? []).toHaveLength(10);
     expect(html).not.toContain('aria-label="Toko ');
-    expect(html).toContain('Antrean verifikasi');
+    // K-71: panel triase + teks tombol tanpa panah, sama persis dengan menu.
+    expect(html).toContain('Perlu tindakan');
+    expect(html).toContain('menunggu verifikasi absensi');
     expect(html).toContain('href="/admin/verifikasi"');
-    expect(html).toContain('Buka Verifikasi');
+    expect(html).toContain('Buka Verifikasi Absensi');
+    expect(html).not.toContain('→');
     for (const label of ['Terjadwal', 'Sudah absen', 'Terlambat', 'Belum absen']) {
       expect(html, `label ${label}`).toContain(label);
     }
@@ -74,11 +77,11 @@ describe('PanelDashboard isi wajib §5.2 (amandemen K-70: tabel, bukan kartu tok
 
   it('kartu memakai Card shadcn: group/card + header + content', () => {
     const html = render(h(PanelDashboard, { data: dataSepuluhToko() }));
-    // K-70 (amandemen §5.2, disetujui pemilik): 1 ringkasan + 1 antrean +
-    // 1 tabel = 3. Angka 16 B2f BUKAN dilonggarkan — 13 kartu memang dihapus
-    // sengaja karena "papan catur". Kalau jumlah ini berubah lagi tanpa
+    // K-71 (amandemen lanjutan §5.2, disetujui pemilik): pita + triase bukan
+    // kartu — tinggal 1 kartu tabel. Angka 3 B2g BUKAN dilonggarkan: 2 kartu
+    // memang dilebur sengaja (de-card). Kalau jumlah ini berubah lagi tanpa
     // perubahan wadah, tes ini harus gagal.
-    expect(html.match(/class="[^"]*(?<![-\w])group\/card(?![-\w])/g) ?? []).toHaveLength(3);
+    expect(html.match(/class="[^"]*(?<![-\w])group\/card(?![-\w])/g) ?? []).toHaveLength(1);
     expect(html).toContain('data-slot="card-header"');
     expect(html).toContain('data-slot="card-content"');
   });

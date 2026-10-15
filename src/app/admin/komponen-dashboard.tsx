@@ -50,6 +50,75 @@ const configTerlambat: ChartConfig = {
  * dan tidak ada input tanggal. Header tabel STATIS (10 baris muat tanpa
  * scroll — konsisten dengan keputusan UI-5B).
  */
+/**
+ * Urutan toko: bermasalah dulu (belum desc, lalu terlambat desc), lengkap di
+ * bawah. `sort` stabil, jadi seri = urutan semula. Murni presentasi di render —
+ * data, fetch, dan endpoint tidak berubah.
+ */
+function urutToko<T extends { belum_absen: number; terlambat: number }>(kartu: T[]): T[] {
+  return [...kartu].sort((a, b) => b.belum_absen - a.belum_absen || b.terlambat - a.terlambat);
+}
+
+/**
+ * Panel "Perlu tindakan" (K-71): HANYA yang bermasalah — toko dengan belum>0
+ * atau terlambat>0 (terurut, tiap baris deep link terfilter ke verifikasi)
+ * plus antrean yang >0. Kosong → "Semua toko beres ✓", bukan panel kosong.
+ * Teks tombol tanpa panah, sama persis dengan label menu.
+ */
+export function PanelTindakan({
+  kartu,
+  antrean,
+  antreanAgenda,
+}: {
+  kartu: DataDashboard['kartu'];
+  antrean: number;
+  antreanAgenda: number;
+}) {
+  const bermasalah = urutToko(kartu.filter((k) => k.belum_absen > 0 || k.terlambat > 0));
+  if (bermasalah.length === 0 && antrean === 0 && antreanAgenda === 0) {
+    return (
+      <section aria-label="Perlu tindakan">
+        <p className="text-base">Semua toko beres ✓</p>
+      </section>
+    );
+  }
+  return (
+    <section aria-label="Perlu tindakan" className="flex flex-col gap-2">
+      <h2 className="text-lg font-semibold tracking-tight">Perlu tindakan</h2>
+      {bermasalah.map((k) => (
+        <div key={k.toko_id} className="flex flex-wrap items-center gap-3 border-b pb-2">
+          <div className="min-w-40 flex-1 text-base">
+            <strong>{k.toko_nama}</strong>
+            <span className="text-muted-foreground">
+              {' — '}
+              {[k.belum_absen > 0 ? `${k.belum_absen} belum absen` : null, k.terlambat > 0 ? `${k.terlambat} terlambat` : null]
+                .filter(Boolean)
+                .join(', ')}
+            </span>
+          </div>
+          <Button size="sm" render={<Link href={`/admin/verifikasi?status=MENUNGGU&toko_id=${k.toko_id}`}>Buka Verifikasi</Link>} />
+        </div>
+      ))}
+      {antrean > 0 ? (
+        <div className="flex flex-wrap items-center gap-3 border-b pb-2">
+          <div className="min-w-40 flex-1 text-base">
+            <strong>{antrean}</strong> <span className="text-muted-foreground">menunggu verifikasi absensi</span>
+          </div>
+          <Button size="sm" render={<Link href="/admin/verifikasi">Buka Verifikasi Absensi</Link>} />
+        </div>
+      ) : null}
+      {antreanAgenda > 0 ? (
+        <div className="flex flex-wrap items-center gap-3 border-b pb-2">
+          <div className="min-w-40 flex-1 text-base">
+            <strong>{antreanAgenda}</strong> <span className="text-muted-foreground">menunggu verifikasi agenda</span>
+          </div>
+          <Button size="sm" render={<Link href="/admin/verifikasi-agenda">Buka Verifikasi Agenda</Link>} />
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
 export function PanelDashboard({ data }: { data: DataDashboard }) {
   const batangHadir = data.kartu.map((k) => ({ toko: k.toko_nama, Terjadwal: k.terjadwal, SudahAbsen: k.sudah_absen }));
   const batangTerlambat = data.kartu.map((k) => ({ toko: k.toko_nama, Terlambat: k.terlambat }));
@@ -69,62 +138,31 @@ export function PanelDashboard({ data }: { data: DataDashboard }) {
     <div className="flex flex-col gap-3">
       <h1 className="mt-0 text-2xl font-semibold tracking-tight">Dashboard — {data.tanggalPanjang}</h1>
 
-      <Card aria-label="Ringkasan hari ini">
-        <CardHeader>
-          <CardTitle>Ringkasan hari ini</CardTitle>
-        </CardHeader>
-        <CardContent className="grid gap-4 [grid-template-columns:repeat(auto-fill,minmax(160px,1fr))]">
-          <div>
-            <div className="text-sm text-muted-foreground">Sudah absen</div>
-            <div className="text-3xl font-bold">
-              {total.sudahAbsen}
-              <span className="text-base font-medium text-muted-foreground"> / {total.terjadwal}</span>
-            </div>
-            <BilahPersen sudah={total.sudahAbsen} terjadwal={total.terjadwal} />
-            <div className="text-sm text-muted-foreground">dari {total.terjadwal} Terjadwal</div>
+      {/* Pita ringkasan BUKAN kartu (K-71): satu momen berani halaman ini =
+          fraksi tabular oversize; sisanya disiplin. Koma sebagai pemisah,
+          bukan `·`. */}
+      <section aria-label="Ringkasan hari ini" className="flex flex-col gap-3 border-b pb-4">
+        <div>
+          <div className="text-sm text-muted-foreground">Sudah absen hari ini</div>
+          <div className="text-5xl font-bold tabular-nums tracking-tight">
+            {total.sudahAbsen}
+            <span className="text-2xl font-medium text-muted-foreground"> / {total.terjadwal}</span>
           </div>
-          <div>
-            <div className="text-sm text-muted-foreground">Terlambat</div>
-            <div className="text-3xl font-bold">{total.terlambat}</div>
-          </div>
-          <div>
-            <div className="text-sm text-muted-foreground">Belum absen</div>
-            <div className="text-3xl font-bold">{total.belumAbsen}</div>
-          </div>
-          <div>
-            <div className="text-sm text-muted-foreground">Toko lengkap</div>
-            <div className="text-3xl font-bold">
-              {tokoLengkap}
-              <span className="text-base font-medium text-muted-foreground"> / {data.kartu.length}</span>
-            </div>
-            <div className="text-sm text-muted-foreground">tanpa terlambat &amp; belum absen</div>
-          </div>
-        </CardContent>
-      </Card>
+          <BilahPersen sudah={total.sudahAbsen} terjadwal={total.terjadwal} />
+          <div className="text-sm text-muted-foreground">dari {total.terjadwal} Terjadwal</div>
+        </div>
+        <div className="flex flex-wrap gap-x-8 gap-y-2 text-sm">
+          <span><strong className="text-base">{total.terlambat}</strong> <span className="text-muted-foreground">Terlambat</span></span>
+          <span><strong className="text-base">{total.belumAbsen}</strong> <span className="text-muted-foreground">Belum absen</span></span>
+          <span><strong className="text-base">{tokoLengkap} / {data.kartu.length}</strong> <span className="text-muted-foreground">Toko lengkap</span></span>
+        </div>
+      </section>
 
-      <Card aria-label="Antrean verifikasi">
-        <CardHeader>
-          <CardTitle>Antrean verifikasi</CardTitle>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-3">
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="min-w-40 flex-1">
-              <div className="text-sm text-muted-foreground">Antrean verifikasi absensi</div>
-              <div className="text-3xl font-bold">{data.antrean}</div>
-            </div>
-            <Button size="sm" render={<Link href="/admin/verifikasi">Buka Verifikasi →</Link>} />
-          </div>
-          {/* BR-G17: antrean agenda terpisah karena halamannya terpisah (BR-G10),
-              dan angka ini ikut menentukan apakah ekspor bisa dilakukan (K-63). */}
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="min-w-40 flex-1">
-              <div className="text-sm text-muted-foreground">Antrean verifikasi agenda</div>
-              <div className="text-3xl font-bold">{data.antreanAgenda}</div>
-            </div>
-            <Button size="sm" render={<Link href="/admin/verifikasi-agenda">Buka Verifikasi Agenda →</Link>} />
-          </div>
-        </CardContent>
-      </Card>
+      <PanelTindakan
+        kartu={data.kartu}
+        antrean={data.antrean}
+        antreanAgenda={data.antreanAgenda}
+      />
 
       <Card>
         <CardHeader>
@@ -141,7 +179,7 @@ export function PanelDashboard({ data }: { data: DataDashboard }) {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {data.kartu.map((k) => {
+              {urutToko(data.kartu).map((k) => {
                 const lengkap = k.belum_absen === 0 && k.terlambat === 0 && k.sudah_absen === k.terjadwal;
                 return (
                   <TableRow key={k.toko_id}>
@@ -163,9 +201,10 @@ export function PanelDashboard({ data }: { data: DataDashboard }) {
                         </span>
                       )}
                     </TableCell>
-                    {/* BR-G17: metrik agenda memakai tanggal submit laporan. */}
+                    {/* BR-G17: metrik agenda memakai tanggal submit laporan.
+                        Koma sebagai pemisah (K-71), bukan `·` pola template. */}
                     <TableCell className="text-sm text-muted-foreground">
-                      {k.agenda.selesai} selesai · {k.agenda.ditolak} ditolak
+                      {k.agenda.selesai} selesai, {k.agenda.ditolak} ditolak
                       {k.agenda.menunggu > 0 ? (
                         <Badge variant="outline" className="ml-1.5">{k.agenda.menunggu} menunggu</Badge>
                       ) : null}

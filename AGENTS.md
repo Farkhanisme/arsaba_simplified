@@ -496,6 +496,19 @@ dokumen; tugas agen adalah **menerjemahkan dokumen menjadi kode tanpa mengarang 
   scope=row hilang — yang terakhir dijatuhkan ketiga berkas tes). Temuan
   audit-sambil-jalan: kartu baru sempat tanpa `CardHeader` — cacat desain
   (kartu tanpa judul), diperbaiki sebelum commit.
+- **UI-8 B2h selesai (2026-10-16): dashboard triase + de-card (K-71).** Audit
+  skill `frontend-design` menemukan B2g terbaca generik dengan cara yang bisa
+  dinamai: kartu identik, meta `·`, panah `→` (ketiganya contoh harfiah skill).
+  Obatnya: pita ringkasan bukan kartu (angka hero tabular oversize = satu momen
+  berani) + panel "Perlu tindakan" (pola Error Summary: hanya bermasalah +
+  antrean, deep link `?status=MENUNGGU&toko_id=` yang sudah ada, kosong →
+  "Semua toko beres ✓") + 1 tabel (bermasalah dulu, stabil untuk seri) +
+  teks tombol = label menu tanpa panah + koma ganti `·`. Perlu amandemen §5.2
+  lagi → **K-71**. 6 tes baru; 4 mutasi tertangkap — 2 di antaranya sempat
+  LOLOS dan diperbaiki: (a) fixture urut-bermasalah-duluan membuat sort tak
+  mengubah apa-apa → toko sempurna dipindah duluan; (b) triase menutupi urutan
+  tabel → urutan diperiksa di dalam tabel saja. Pelajaran: **tes urutan harus
+  scoped ke wadahnya**, bukan seluruh HTML.
 - **UI-8 B2b selesai (2026-10-15): verifikasi.** Bar aksi massal menempel
   (`sticky bottom-3 z-20` + `shadow-lg` pada Card pembungkus; isi badge + 2 tombol
   tidak berubah) dan foto mini 40px → 56px (src + aria-label tidak berubah).
@@ -623,7 +636,8 @@ Tidak ada yang terblokir — kolom keputusan menunjukkan keputusan yang dipakai.
 | UI-8 B1 | **Fondasi: palet B + tipografi 1.** Token `globals.css` + hierarki judul di 4 komponen bersama. Tanpa ubah tata letak halaman, endpoint, atau server | K-69 | **SELESAI** 2026-10-15 · 10 tes baru |
 | UI-8 B2a | ~~Strip ringkasan non-Card~~ → **diganti B2f** (keputusan dibalik sadar, tes lama dihapus dengan alasan) | — | diganti 2026-10-15 |
 | UI-8 B2f | ~~16 kartu~~ → **diganti B2g** (pemilik: masih seperti papan catur) | — | diganti 2026-10-15 |
-| UI-8 B2g | **Dashboard TABEL (K-70, amandemen §5.2).** 3 kartu: ringkasan + antrean + tabel 10 baris (th scope=row, header statis). DataDashboard utuh | — | **SELESAI** 2026-10-15 · 6 tes baru |
+| UI-8 B2g | ~~3 kartu~~ → **diganti B2h** (skill temukan 4 pola template) | — | diganti 2026-10-16 |
+| UI-8 B2h | **Dashboard triase + de-card (K-71).** Pita ringkasan + panel Perlu tindakan (deep link terfilter) + 1 tabel (bermasalah dulu). Tanpa `·`, tanpa `→` | — | **SELESAI** 2026-10-16 · 6 tes baru |
 | UI-8 B2b | **Verifikasi: bar aksi massal menempel + foto mini 56px.** Sticky bottom-3 z-20 (di bawah dialog); isi bar (badge + 2 tombol) utuh; src/aria-label foto utuh | — | **SELESAI** 2026-10-15 · 3 tes baru |
 | UI-8 B2c | **Jadwal: pita latar kolom weekend.** Header + sel isi weekend `bg-muted/50`; teks "(Weekend)" tetap (warna bukan satu-satunya pembeda, §1.3) | — | **SELESAI** 2026-10-15 · 2 tes baru |
 | UI-8 B2d | **Rekap: alur 3 langkah eksplisit.** "1. Filter" (judul kartu), "2. Pemeriksaan" + "3. Pratinjau & unduh" (h2 berurutan); isi/href/disabled utuh | — | **SELESAI** 2026-10-15 · 3 tes baru |

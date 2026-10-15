@@ -35,8 +35,8 @@ describe('halaman /admin benar-benar bisa dirender', () => {
     // K-70: tepat 10 baris toko (th scope=row) dalam satu kartu tabel.
     expect(html.match(/<th[^>]*scope="row"/g) ?? []).toHaveLength(10);
     expect(html).toContain('Toko 10');
-    // Kartu antrean dengan tautan ke Verifikasi (rules/05 §5.2).
-    expect(html).toContain('Antrean verifikasi');
+    // Panel triase dengan tautan ke Verifikasi (rules/05 §5.2, K-71).
+    expect(html).toContain('Perlu tindakan');
     expect(html).toContain('href="/admin/verifikasi"');
     // Empat angka per kartu.
     for (const label of ['Terjadwal', 'Sudah absen', 'Terlambat', 'Belum absen']) {
