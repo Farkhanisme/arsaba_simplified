@@ -6,15 +6,21 @@
 >
 > M9 selesai 2026-10-03: 664 tes hijau di tiga timezone. Empat butir di bawah **tidak**
 > merusak apa yang sudah dicapai M9 — semuanya tersisa dari luar ruang lingkupnya.
+>
+> **Status dokumen disinkronkan 2026-10-15.** Tiga dari empat butir ternyata **sudah dikerjakan**
+> dan ter-commit di `adbb000` (2026-10-03), bukan di baris tabel ini — tabel §A sempat
+> masih menulis "belum" padahal kodenya sudah ada. Hanya **M10-04 (jsdom)** yang benar-benar
+> masih terbuka, dan itu menunggu keputusan pemilik. Bagian §B **tidak dihapus**: cara
+> reproduksinya masih berguna kalau nanti CSP atau header berubah lagi.
 
 ## A. Ringkasan
 
 | ID | Isi | Severity | Status |
 |---|---|---|---|
-| M10-01 | `/login` dan `/` tanpa satu pun header keamanan | **tinggi** | belum |
-| M10-02 | `script-src 'unsafe-eval'` aktif di produksi | sedang | belum |
-| M10-03 | `ItemMenu.segera` adalah kode mati | kecil | belum |
-| M10-04 | Lingkungan DOM (jsdom) — B-20 | besar | **menunggu keputusan pemilik** |
+| M10-01 | `/login` dan `/` tanpa satu pun header keamanan | **tinggi** | **selesai** 2026-10-03 (`adbb000`) |
+| M10-02 | `script-src 'unsafe-eval'` aktif di produksi | sedang | **selesai** 2026-10-03 (`adbb000`), lalu diperketat 2026-10-12 (`d4e15d2`, BUG-CSP-01) |
+| M10-03 | `ItemMenu.segera` adalah kode mati | kecil | **selesai** 2026-10-03 (`adbb000`) — keputusan pemilik: **dipertahankan** + komentar, bukan dihapus |
+| M10-04 | Lingkungan DOM (jsdom) — B-20 | besar | **menunggu keputusan pemilik** — satu-satunya yang masih terbuka |
 
 **Tidak ada satu pun dari butir ini yang disebabkan oleh M9.** M10-01 dan M10-02
 adalah batas cakupan yang saya tulis sendiri di prompt M9; M10-03 adalah efek samping
@@ -25,6 +31,11 @@ wajar dari penghapusan cabang `(Segera)`.
 ## B. Butir Per Item
 
 ### M10-01 — `/login` dan `/` tanpa satu pun header keamanan
+
+**Status: SELESAI 2026-10-03** (`adbb000`). Header keempat sudah dikirim ke `/` dan
+`/login` di `next.config.mjs`. Dijaga tes di `tests/m9-header.test.ts`
+(`describe('M10 header / dan /login (M10-01)')`, 3 tes) — termasuk `/login` tetap
+mengizinkan inline script, karena melarangnya mematikan hidrasi.
 
 **Severity: tinggi.** Ini satu-satunya halaman tanpa autentikasi yang menerima
 password — permukaan serangan terbesar di aplikasi — dan justru tidak punya proteksi
@@ -67,6 +78,16 @@ hanya `curl`.
 
 ### M10-02 — `script-src 'unsafe-eval'` aktif di produksi
 
+**Status: SELESAI 2026-10-03** (`adbb000`). `next.config.mjs` membaca `NODE_ENV`
+saat build dan hanya menambahkan `'unsafe-eval'` di mode **development** (HMR butuh
+itu); produksi tidak mengirimnya. Dijaga tes di `tests/m9-header.test.ts`
+(`describe('M10 CSP tanpa unsafe-eval di produksi (M10-02)')`, 2 tes) — dan dua arah,
+karena melonggarkan produksi demi HMR adalah kesalahan yang tidak terlihat dari curl.
+
+**Diperketat lagi 2026-10-12** (`d4e15d2`, BUG-CSP-01): `style-src 'unsafe-inline'`
+ikut dipisah dengan cara yang sama. Alasannya bukan opportunistic — CSP versi lama
+mematakan `<main style>` dan logo Next.js di `/` dan `/login` (lihat B-21).
+
 **Fakta:** `next.config.mjs` memakai
 
 ```
@@ -95,7 +116,13 @@ merender. Recharts, base-ui, dan Next App Router semuanya bisa memakai inline sc
 
 ### M10-03 — `ItemMenu.segera` adalah kode mati
 
-**Fakta:** `src/app/admin/menu.ts:7` masih mendeklarasikan
+**Status: SELESAI 2026-10-03** (`adbb000`) — dan **bukan** dengan menghapus
+`segera?: boolean`. Pemilik memutuskan **dipertahankan** dengan komentar yang
+menjelaskan alasan pola itu masih ada, karena proyek ini memakai pola "Segera"
+untuk menu yang halamannya belum dibangun. Komentarnya ada di
+`src/app/admin/menu.ts` dan menyebut (M10-03) supaya utangnya tidak hilang.
+
+**Fakta:** `src/app/admin/menu.ts:11` masih mendeklarasikan
 
 ```ts
 segera?: boolean;

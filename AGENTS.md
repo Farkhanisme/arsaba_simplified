@@ -433,6 +433,45 @@ dokumen; tugas agen adalah **menerjemahkan dokumen menjadi kode tanpa mengarang 
   Selain itu, file tes TIDAK boleh jalan paralel: semuanya memakai `data/uji_*.db` dan saling
   menghapus file itu. Gejalanya bukan error yang jelas, melainkan kegagalan yang berubah-ubah
   tiap kali. `vitest.config.mts` sudah mengaturnya lewat `fileParallelism: false`.
+- **UI-6 selesai (2026-10-15): navigasi bawah halaman karyawan.** `K-67`. Tepat dua item
+  ("Absen" dan "Agenda") di `src/components/ui/navigasi-bawah.tsx`; tab di atas
+  (`TabsList` + `TabsTrigger`) **diganti** komponen itu, sementara status tab tetap
+  `useState` lokal di `TabsHalamanClient.tsx` — **tanpa URL** (deep linking tidak
+  diputuskan). `page.tsx` memakai `min-h-dvh` (bukan `vh`, supaya keyboard virtual tidak
+  merusak kerangka) dan padding bawah `calc(4rem + env(safe-area-inset-bottom))` supaya
+  navigasi tidak menutupi tombol. 29 tes di `tests/ui6-navigasi-bawah.test.ts`.
+  **Yang tidak bisa dibuktikan tes:** posisi melekat, perilaku keyboard, dan
+  `env(safe-area-inset-bottom)` — `renderToStaticMarkup` tidak punya
+  CSS maupun viewport, jadi verifikasi manual di browser adalah **syarat selesai**, bukan
+  pelengkap (**B-23**).
+- **UI-7 selesai (2026-10-15): jadwal bulanan tidak lagi menggeser halaman + toast.**
+  Akar "halaman bergeser" ternyata **bukan** di grid bulanan, melainkan di pembungkus konten
+  `src/components/ui/sidebar.tsx`: anak flex tanpa `min-w-0` ikut melebar mengikuti grid
+  yang lebar, lalu halaman ikut bergeser. `min-w-0` membuat pengguliran terjadi di dalam
+  pembungkus itu, bukan di halaman. Toast: `Alert` di `src/app/admin/jadwal/page.tsx` diganti
+  `sonner` (sukses/gagal), dipasang lewat `src/app/admin/ToasterAdmin.tsx` di
+  `src/app/admin/layout.tsx`. 10 tes di `tests/ui7-jadwal-dan-toast.test.ts`.
+  **Tidak ada keputusan pemilik baru** — commit ini tidak menyentuh `rules/00`, jadi kolom
+  Keputusan di tabel sengaja tetap `—`.
+- **Prompt UI-8 siap (`rules/25-agent-prompt-ui8.md`), 2026-10-15.** Pemicunya: pemilik
+  menyatakan tampilan "kurang menarik" (2026-10-14), dan `rules/00` memang **tidak memuat
+  satu pun** keputusan soal warna, tipografi, atau tema — jadi ini penambahan keputusan,
+  bukan pelanggaran keputusan lama. **Fase A sepenuhnya READ-ONLY:** tidak boleh menulis satu
+  file pun, keluarannya dokumen keputusan di chat. Syarat mutlak di akhir: `git status
+  --short` dan `git diff --stat` harus sama dengan yang tercatat di awal — kalau berubah,
+  milestone **gagal**, bukan "sedikit di luar cakupan". Kontras **dihitung**, bukan dikira:
+  ambang 4.5:1 teks biasa, 3:1 non-teks, dan **7:1 untuk halaman karyawan** (dipakai di
+  bawah matahari — lebih ketat dari WCAG dan itu disengaja). Setelah Anda memilih opsi,
+  implementasinya jadi milestone baru (Fase B).
+- **Tabel milestone pernah basi (2026-10-15) — sudah disinkronkan.** Baris UI-1, UI-2, dan
+  M10 masih tertulis "prompt siap" padahal ketiganya sudah selesai dan ter-commit
+  (`9abe8d1`, `adbb000`), dan UI-6/UI-7 **tidak punya baris sama sekali**. `rules/21` §A
+  juga masih menandai M10-01/02/03 "belum" padahal ketiganya ada di `next.config.mjs` dan
+  `src/app/admin/menu.ts` (dibuktikan dengan `git log -S`, bukan dari pengingat).
+  Penyebabnya mudah: commit UI-2 + M9 + M10 dipaket jadi satu, lalu tabel tidak pernah
+  dikembalikan ke sinkron. **Pelajaran:** status di dokumen harus dicek **setelah commit**,
+  bukan hanya setelah milestone — kalau tidak, tabel ikut berbohong dan menyisakan pekerjaan
+  yang sebenarnya sudah selesai.
 - **Keputusan baru 2026-10-01:** K-46 batas percobaan login (5/24 jam, per username **dan** IP,
   buka kunci manual Super Admin) · K-47 halaman `/admin/ubah-password`, ganti password membatalkan
   seluruh sesi lain · K-48 password minimal 8 karakter · K-49 seed dua akun, password dari env.
@@ -448,7 +487,8 @@ dokumen; tugas agen adalah **menerjemahkan dokumen menjadi kode tanpa mengarang 
    `rules/14-agent-prompt-m6.md` (M6), `rules/15-agent-prompt-m7.md` (M7),
    `rules/16-agent-prompt-m8.md` (M8), `rules/17-agent-prompt-ui1.md` (UI-1),
    `rules/18-agent-prompt-ui2.md` (UI-2), `rules/20-agent-prompt-m9.md` (M9),
-   `rules/22-agent-prompt-m10.md` (M10).
+   `rules/22-agent-prompt-m10.md` (M10), `rules/23-agent-prompt-ui6.md` (UI-6),
+   `rules/24-agent-prompt-ui7.md` (UI-7), `rules/25-agent-prompt-ui8.md` (UI-8).
    **Agenda tidak memakai file prompt** — M11–M14 dikerjakan langsung dari K-57 s.d.
    K-65 di `rules/00` dan BR-G1..BR-G20 di `rules/02` §18.
    Catatan utang kerja: `rules/19-catatan-m9.md` (M9), `rules/21-catatan-m10.md` (M10).
@@ -500,10 +540,10 @@ Tidak ada yang terblokir — kolom keputusan menunjukkan keputusan yang dipakai.
 | M6 | Tandai tidak berangkat | K-19, K-22, K-31, K-32, K-56 | **SELESAI** 2026-10-03 |
 | M7 | Dashboard | K-22, K-28, K-30, K-36 | **SELESAI** 2026-10-03 |
 | M8 | Rekap, pra-syarat ekspor, Excel, `log_ekspor`, penguncian periode | K-13, K-32, K-33 | **SELESAI** 2026-10-03 |
-| UI-1 | Pondasi desain (Tailwind v4 + shadcn), mode gelap, layout, dashboard + grafik | — | prompt siap |
-| UI-2 | Redesign 12 halaman admin sisanya | — | **prompt siap** (`rules/18`) |
+| UI-1 | Pondasi desain (Tailwind v4 + shadcn), mode gelap, layout, dashboard + grafik | — | **SELESAI** 2026-10-03 (`rules/17`) |
+| UI-2 | Redesign 12 halaman admin sisanya | — | **SELESAI** 2026-10-03 · 622 tes (`rules/18`) |
 | M9 | Audit log UI, hardening, aksesibilitas, QA menyeluruh | — | **SELESAI** 2026-10-03 · 664 tes |
-| M10 | Header keamanan `/` dan `/login`, `unsafe-eval` di produksi, kode mati | `rules/03` §9.7 | **prompt siap** (`rules/22`) · 3 dari 4 utang kerja |
+| M10 | Header keamanan `/` dan `/login`, `unsafe-eval` di produksi, kode mati | `rules/03` §9.7 | **SELESAI** 2026-10-03 · 3 dari 4 utang kerja (`rules/22`); M10-04 jsdom → **B-20** |
 | M11 | **Agenda — sisi admin**: K-57, K-58, K-62 | K-57, K-58, K-62 | **SELESAI** 2026-10-08 |
 | M12 | Agenda — sisi karyawan (tab `/a/[token]`, kamera before/after, draft) | K-59, K-60 | **SELESAI** 2026-10-08 |
 | M13 | Agenda — verifikasi admin + penguncian periode terekspor | K-61, K-65 | **SELESAI** 2026-10-08 |
@@ -514,6 +554,9 @@ Tidak ada yang terblokir — kolom keputusan menunjukkan keputusan yang dipakai.
 | UI-5B | Header lengket di 3 tabel panjang + halaman akar (BUG-UI-01) | `rules/05` §2 | **SELESAI** 2026-10-12 · 983 tes |
 | UI-5C | `loading.tsx` (transisi rute) + judul halaman di header | `rules/05` §1.4 | **SELESAI** 2026-10-12 · 1004 tes |
 | UI-5D | Paginasi di `master/*` dan `akun` (repo belum punya `LIMIT`) | `rules/05` §6 | belum — butuh perubahan query |
+| UI-6 | **Navigasi bawah halaman karyawan `/a/[token]`** — tepat 2 item (Absen, Agenda), menggantikan tab atas; status tab tetap state lokal, tanpa URL | K-67, `rules/05` §3b | **SELESAI** 2026-10-15 · 29 tes (`rules/23`) |
+| UI-7 | **Jadwal bulanan tidak lagi menggeser halaman** (`min-w-0` pada pembungkus konten sidebar) + toast `sonner` menggantikan `Alert` di halaman jadwal | — | **SELESAI** 2026-10-15 · 10 tes (`rules/24`) |
+| UI-8 | **Audit tampilan Fase A — READ-ONLY**: opsi palet + tipografi + peta token. Keluarannya **dokumen keputusan untuk pemilik**, bukan diff | — | **prompt siap** (`rules/25`) · belum dikerjakan |
 
 ## Yang paling mudah salah
 
