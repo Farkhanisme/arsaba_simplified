@@ -105,6 +105,21 @@ Ketika pemilik menyetujui sebuah `[USULAN]`, tag-nya dihapus di semua dokumen da
 | K-64 | Agenda masuk rekap Excel: sheet baru **`Detail Agenda`** + kolom aggregate di sheet `Ringkasan`. Dashboard menampilkan metrik agenda per toko. |
 | K-65 | **K-32 berlaku untuk agenda**: verifikasi laporan agenda pada periode yang sudah diekspor hanya Super Admin. Sebaliknya, **BR-A9 (tidak berangkat) TIDAK memblokir** pengerjaan agenda — pemilik memutuskan ini. |
 | K-66 | **Keterangan absensi.** Karyawan boleh menulis **teks bebas opsional** (maks **500 karakter**) di modal hasil foto, untuk check-in maupun check-out. Absen **tidak pernah** terblokir atau berubah status karena keterangan. Keterangan **tidak bisa diubah** setelah terkirim. Admin membacanya di kartu Verifikasi dan di sheet `Detail Harian` (kolom baru → BR-R5 jadi **13 kolom**). Keterangan **tidak masuk** caption Telegram. Aturan lengkap: `rules/02` BR-A13. |
+| K-67 | **Navigasi bawah untuk halaman karyawan `/a/[token]`**, menggantikan tab yang tadinya berada di atas. Tepat **DUA item**: **"Absen"** dan **"Agenda"**. Tidak ada item ketiga, tidak ada tombol tengah besar. Alasannya sama seperti alasan tab sejak M12: **satu permukaan link saja** (K-01), dan link yang bocor berarti absen atas nama orang (risiko **D-1**). Navigasi bawah **TIDAK memakai URL** — status tab tetap state lokal di sisi klien seperti sekarang; memindahkannya ke URL adalah fitur baru dan di luar milestone ini. **Halaman admin tidak ikut berubah** — `rules/05` §1.2 (desktop-first) tidak diubah. Aturan rinci ada di `rules/05` §3b. |
+
+> **Catatan K-67 (apa yang TIDAK diputuskan).** Tiga hal sengaja dibiarkan terbuka dan
+> **tidak boleh diisi sendiri oleh agen**:
+>
+> 1. **Jumlah item navigasi bawah tidak boleh bertambah** tanpa keputusan baru. K-67 mengunci
+>    dua item, bukan "sedikit item".
+> 2. **Status tab di URL** (deep linking) tidak diputuskan. Sekarang state lokal, sama seperti
+>    sebelum K-67.
+> 3. **Navigasi bawah di halaman admin** tidak diputuskan. Admin tetap desktop-first; yang punya
+>    navigasi di layar sempit hari ini adalah drawer sidebar yang sudah ada.
+>
+> Batas yang bisa dibuktikan tes untuk navigasi bawah ada di `rules/OPEN_QUESTIONS.md` **B-23**:
+> `renderToStaticMarkup` tidak punya CSS, viewport, maupun keyboard virtual, jadi posisi
+> melekat, perilaku keyboard, dan safe-area **hanya bisa dicek manual di browser**.
 
 > **Catatan K-58 (konsekuensi yang sudah disadari pemilik).** Karena penerima dihitung ulang,
 > memindahkan karyawan (BR-P2) setelah agenda dibuat **berpengaruh pada agenda**: karyawan yang

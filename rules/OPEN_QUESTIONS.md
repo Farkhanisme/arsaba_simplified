@@ -472,3 +472,50 @@ tes render yang memeriksa elemen yang teksnya dibaca. Dibuktikan dengan mutasi:
 ubah `text-base` → `text-sm`, dan sisipkan `text-xs`.
 
 **ID berikutnya: B-23.**
+
+---
+
+## B-23 — Navigasi bawah (K-67) tidak bisa dibuktikan penuh oleh tes render
+
+**Status: DITERIMA dengan verifikasi manual sebagai syarat selesai.**
+
+**Konteks.** K-67 memindahkan navigasi halaman karyawan `/a/[token]` ke bawah
+dengan tepat dua item. Pemeriksaan halaman ini memakai `renderToStaticMarkup`,
+dan hasilnya **HTML tanpa CSS, tanpa viewport, tanpa keyboard virtual**.
+
+**Masalah.** Akibatnya, hal-hal seperti "melekat di bawah", "tidak menutupi
+tombol", dan "aman dari tepi bawah iPhone" **tidak bisa dibuktikan tes** — dan
+tidak akan bisa, selama tidak ada lingkungan DOM.
+
+**Yang tidak bisa dibuktikan tes, dan alasannya:**
+
+| Yang tidak bisa dibuktikan | Kenapa mustahil di lingkungan ini |
+|---|---|
+| Navigasi benar-benar melekat di bawah dan tidak ikut ter-scroll | Butuh viewport terukur; `renderToStaticMarkup` tidak punya layout sama sekali. |
+| Padding bawah konten cukup jauh sehingga tombol "Absen" tidak tertutup | Kelas `pb-*` memang muncul di HTML, tetapi **keberadaan kelas bukan bukti** tombolnya tidak tertutup. |
+| `dvh` benar-benar menyusut saat keyboard virtual terbuka | Butuh viewport yang berubah ukuran; tidak ada DOM. |
+| `env(safe-area-inset-bottom)` bernilai nol pada perangkat tanpa notch dan tidak nol pada iPhone ber-notch | Butuh perangkat sungguhan dengan tepi melengkung. |
+| Fokus keyboard terlihat dan urutan fokus benar | Butuh DOM dan event keyboard. |
+| Perpindahan tab benar-benar melepas kamera | Butuh `getUserMedia` sungguhan; ikon kamera di address bar hanya terlihat di browser. |
+
+**Dampak — batas yang tetap bisa dibuktikan tes:** item navigasi **ada** dan
+tepat dua; keduanya punya **nama aksesibel** (bukan ikon saja); kedua label
+terbaca pengguna; tab yang tidak aktif **tidak ada sama sekali** di markup
+(benar-benar di-unmount, bukan disembunyikan); tinggi memakai `dvh` dan bukan
+`vh`; ada penanganan `env(safe-area-inset-bottom)`; tidak ada warna literal
+maupun teks Inggris; tidak ada teks di bawah 16 px.
+
+**Rekomendasi.** Tetap diterima, dengan **verifikasi manual di browser sebagai
+syarat milestone selesai**, bukan pelengkap. Batas ini sama dengan **B-20**
+(jsdom masih ditunda pemilik) — navigasi bawah termasuk salah satu dari empat
+alur yang paling butuh DOM, dan keputusan itu belum diambil.
+
+**Catatan teknis yang ditemukan sambil menulis:** `env(safe-area-inset-bottom)`
+hanya bernilai selain nol bila meta viewport memuat `viewport-fit=cover`.
+Aplikasi ini **tidak** memuatnya, jadi di iPhone nilainya 0 — tetapi browser
+tetap menjaga konten di atas strip gesture, jadi perilakunya benar juga tanpa
+itu. Menambahkannya berarti konten bisa masuk ke bawah notch dan status bar,
+karena itu harus dibarengi `safe-area-inset-top`; itu keputusan baru, bukan
+bagian UI-6, dan **tidak diambil di sini**.
+
+**ID berikutnya: B-24.**

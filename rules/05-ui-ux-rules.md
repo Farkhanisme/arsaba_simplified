@@ -122,6 +122,30 @@ Jangan diam-diam mengirim request yang pasti ditolak Vercel dengan 413.
 Perilaku batas 20 jam (K-29) dan blokir tanggal bertanda tidak berangkat (K-31) mengikuti `02`
 BR-A9/BR-A10; pesan terkait tercantum di §7.
 
+### 3b. Navigasi bawah (K-67)
+
+Navigasi bawah **menggantikan** tab yang sebelumnya berada di atas. Aturan §3 lain **tidak
+berubah**; yang mengatur bentuk dan perawatannya ada di sini.
+
+| Hal | Aturan |
+|---|---|
+| Isi | Tepat **dua item**: "Absen" dan "Agenda" (K-67). Tidak ada item ketiga, tidak ada tombol tengah besar, tidak ada tab tersembunyi. Jumlah item **tidak boleh ditambah** tanpa keputusan pemilik baru. |
+| Label | Setiap item punya **label teks Bahasa Indonesia**. Ikon saja **tidak boleh** menjadi satu-satunya pembawa arti (§1.3). |
+| Target sentuh | Mengikuti §2 — minimal 44×44 px. Tidak diulang di sini. |
+| Letak | Melekat di bawah, **tidak ikut ter-scroll** bersama konten. |
+| Padding konten | Konten halaman **wajib** punya padding bawah secukupnya supaya navigasi **tidak menutupi** tombol utama "Absen". Ini butir yang paling sering terlewat: navigasi yang melekat tanpa padding menutupi tombol begitu layar pendek atau keyboard virtual terbuka. |
+| Tinggi | Memakai **`dvh`, bukan `vh`**, supaya tinggi tidak ikut melompat saat keyboard virtual membuka dan menutup. |
+| Tepi bawah iPhone | Padding bawah navigasi memakai **`env(safe-area-inset-bottom)`**, **tanpa** tambahan tinggi tetap — supaya perangkat tanpa notch tidak mendapat ruang kosong ganda. |
+| Tab aktif | Harus bisa dibedakan **tanpa mengandalkan warna saja** (§1.3): penanda bentuk (garis di atas item aktif) selain beda warna dan tebal. Label teksnya tetap terbaca di kedua kondisi. |
+| Keyboard | Semua item bisa difokus dan dioperasikan dari keyboard, dan fokus yang terlihat wajib ada (§2). |
+| URL | Status tab **tidak pernah** ditulis ke URL — tetap state lokal (K-67). |
+
+**Perpindahan tab WAJIB melepas kamera.** Isi tab me-remount setiap kali tab berganti.
+Alasannya ada di catatan kamera di §3: **sembunyi saja masih memegang perangkat kamera**, dan
+dua permintaan `getUserMedia` yang hidup bersamaan membuat kamera depan gagal dibuka di
+perangkat Android tertentu — itu mematikan absen. Jadi tab yang ditinggalkan harus benar-benar
+**di-unmount**, bukan disembunyikan.
+
 ## 4. Layout Admin
 
 - Sidebar kiri (tablet ke bawah: menu bisa dilipat), header dengan nama akun, peran, tombol Keluar.

@@ -32,8 +32,15 @@ const BERKAS_KARYAWAN = readdirSync(join(process.cwd(), 'src/app/a/[token]')).fi
   f.endsWith('.tsx'),
 );
 
+/**
+ * UI-6 (K-67): label navigasi bawah bukan lagi bagian dari folder `/a/[token]/`,
+ * tapi teksnya tetap dibaca karyawan setiap kali membuka halaman. Karena itu
+ * komponennya ikut disapu. Ini menambah cakupan, bukan mengurangi.
+ */
+const BERKAS_KARYAWAN_TAMBAHAN = ['src/components/ui/navigasi-bawah.tsx'];
+
 function sumber(nama: string): string {
-  const teks = readFileSync(join(process.cwd(), 'src/app/a/[token]', nama), 'utf8');
+  const teks = readFileSync(join(process.cwd(), nama), 'utf8');
   // Komentar dibuang dulu. Docblock page.tsx menjelaskan aturan "text-xs tidak
   // boleh dipakai" — jadi kalau tidak dibuang, dokumentasi yang jujur justru
   // menggagalkan tesnya sendiri. Ini jebakan tes-source yang nyata, bukan
@@ -52,22 +59,28 @@ describe('sapuansumber: tidak ada font kecil di halaman karyawan', () => {
     expect(BERKAS_KARYAWAN.length).toBeGreaterThanOrEqual(4);
     expect(BERKAS_KARYAWAN).toContain('page.tsx');
     expect(BERKAS_KARYAWAN).toContain('AbsenClient.tsx');
+    // UI-6: komponen navigasi bawah wajib ada, kalau tidak sapuan di bawah laps.
+    for (const f of BERKAS_KARYAWAN_TAMBAHAN) {
+      expect(() => sumber(f), `berkas tambahan bisa dibaca: ${f}`).not.toThrow();
+    }
   });
 
   it('TIDAK ada text-xs (12px) di satu pun berkas karyawan', () => {
     // BUKTI: kembalikan satu `text-base` menjadi `text-xs` -> tes ini gagal.
-    const pedals = BERKAS_KARYAWAN.filter((f) => /\btext-xs\b/.test(sumber(f)));
+    const pedals = [...BERKAS_KARYAWAN.map((f) => `src/app/a/[token]/${f}`), ...BERKAS_KARYAWAN_TAMBAHAN]
+      .filter((f) => /\btext-xs\b/.test(sumber(f)));
     expect(pedals, `text-xs masih dipakai di: ${pedals.join(', ')}`).toEqual([]);
   });
 
   it('TIDAK ada ukuran font bebas di bawah 16px', () => {
     // Menutup jalur lain untuk teks kecil: text-[13px], text-[0.8rem], dll.
-    const kecil = BERKAS_KARYAWAN.filter((f) => {
-      const semua = [...sumber(f).matchAll(/text-\[([0-9.]+)(px|rem)\]/g)];
-      return semua.some(
-        ([, angka, satuan]) => (satuan === 'px' ? Number(angka) < 16 : Number(angka) < 1),
-      );
-    });
+    const kecil = [...BERKAS_KARYAWAN.map((f) => `src/app/a/[token]/${f}`), ...BERKAS_KARYAWAN_TAMBAHAN]
+      .filter((f) => {
+        const semua = [...sumber(f).matchAll(/text-\[([0-9.]+)(px|rem)\]/g)];
+        return semua.some(
+          ([, angka, satuan]) => (satuan === 'px' ? Number(angka) < 16 : Number(angka) < 1),
+        );
+      });
     expect(kecil, `ukuran bebas < 16px di: ${kecil.join(', ')}`).toEqual([]);
   });
 });

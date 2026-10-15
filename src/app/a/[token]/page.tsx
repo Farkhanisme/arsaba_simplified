@@ -27,6 +27,18 @@ import TabsHalamanClient from './TabsHalamanClient';
  * `text-xs` (12px) TIDAK BOLEH dipakai di halaman ini sama sekali; perubahan
  * ini dibuat 2026-10-12 karena sebelumnya ada 7 `text-xs` dan 11 `text-sm` pada
  * teks yang justru paling penting dibaca (lihat rules/OPEN_QUESTIONS.md B-22).
+ *
+ * NAVIGASI BAWAH (K-67, rules/05 §3b): navigasi melekat di bawah dengan
+ * `fixed`, jadi konten WAJIB punya padding bawah yang lebih besar dari empat sisi
+ * lain. Kalau padding ini dikembalikan jadi `p-4`, navigasi akan menutupi tombol
+ * "Absen" — dan itu butir yang paling sering terlewat, karena kelihatan benar di
+ * halaman yang panjang. `4rem` = tinggi bar navigasi; `env(safe-area-inset-bottom)`
+ * = ruang untuk strip gesture iPhone, dan TANPA-nya halaman ini tidak akan punya
+ * ruang kosong ganda di perangkat yang tidak punya notch.
+ *
+ * `min-h-dvh`, bukan `min-h-screen`/`min-h-[100vh]`: `dvh` ikut menyusut ketika
+ * keyboard virtual membuka, jadi kerangka halaman dan bar di bawahnya tetap
+ * menempel di tepi yang benar. `vh` tidak melakukan itu.
  */
 export default async function HalamanAbsen({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
@@ -39,7 +51,7 @@ export default async function HalamanAbsen({ params }: { params: Promise<{ token
   const infoAgenda = await muatInfoAgenda(token);
 
   return (
-    <main className="mx-auto flex w-full max-w-[480px] flex-col gap-4 p-4 animate-in fade-in duration-300 motion-reduce:animate-none">
+    <main className="mx-auto flex min-h-dvh w-full max-w-[480px] flex-col gap-4 px-4 pt-4 pb-[calc(4rem+env(safe-area-inset-bottom))] animate-in fade-in duration-300 motion-reduce:animate-none">
       <header>
         <h1 className="text-xl font-semibold tracking-tight">{info.nama}</h1>
         <p className="text-sm text-muted-foreground">{info.toko}</p>

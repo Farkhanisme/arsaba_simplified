@@ -202,10 +202,15 @@ describe('rules/05 §3 — isi halaman absen tidak boleh hilang', () => {
     // Tes di atas hanya membuktikan tab ada setelah jadwal — belum membuktikan
     // kamera benar-benar berada DI DALAM tab absen. Tanpa ini, tab kosong yang
     // namanya "Absen" akan lolos.
+    //
+    // K-67: tab tidak lagi memakai TabsList/TabsTrigger, tapi dua item yang
+    // sama persis. Yang wajib dibuktikan TIDAK berubah; pemeriksaan perilakunya
+    // (markup tab agenda benar-benar tanpa <video>) ada di
+    // tests/ui6-navigasi-bawah.test.ts.
     const tabs = readFileSync('src/app/a/[token]/TabsHalamanClient.tsx', 'utf-8');
-    const tabAbsen = tabs.indexOf('<TabsTrigger value="absen"');
+    const tabAbsen = tabs.indexOf("label: 'Absen'");
     const isiAbsen = tabs.indexOf('<AbsenClient');
-    const tabAgenda = tabs.indexOf('<TabsTrigger value="agenda"');
+    const tabAgenda = tabs.indexOf("label: 'Agenda'");
     const isiAgenda = tabs.indexOf('<AgendaClient');
     expect(tabAbsen).toBeGreaterThan(-1);
     expect(isiAbsen).toBeGreaterThan(tabAbsen);
