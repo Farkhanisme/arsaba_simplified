@@ -463,6 +463,53 @@ dokumen; tugas agen adalah **menerjemahkan dokumen menjadi kode tanpa mengarang 
   ambang 4.5:1 teks biasa, 3:1 non-teks, dan **7:1 untuk halaman karyawan** (dipakai di
   bawah matahari — lebih ketat dari WCAG dan itu disengaja). Setelah Anda memilih opsi,
   implementasinya jadi milestone baru (Fase B).
+- **UI-8 B1 selesai (2026-10-15): fondasi palet B + tipografi 1 (K-69).** Cakupan
+  sengaja sempit: `globals.css` (primer biru hue 255; secondary/muted/accent dipecah
+  jadi tiga lightness; card dipisah dari background; `--destructive` dan `--badge-*`
+  tidak berubah) + hierarki judul dua tingkat di 4 komponen bersama (`CardTitle` dan
+  `JudulHalaman` text-lg semibold; judul Dialog/Sheet text-base semibold) + stack font
+  eksplisit (alias `--font-heading: var(--font-sans)` yang sirkular dibuang).
+  Bukti kontrak FE-BE utuh: `git diff --stat src/app/api/` = 0 dan `src/server/` +
+  `migrations/` = 0 — hanya presentasi yang berubah. 10 tes baru
+  (`tests/ui8b1-fondasi.test.ts`); 4 mutasi semuanya tertangkap. Tata letak halaman
+  (Fase B2) sengaja belum — fondasi dulu supaya sumber masalah visual selalu jelas.
+- **UI-8 B2a selesai (2026-10-15): dashboard.** Strip "Ringkasan hari ini" (4 total =
+  jumlah kolom kartu toko, dihitung di render — tanpa fetch/prop/endpoint baru),
+  fraksi `sudah/terjadwal` per kartu toko, dan panah → pada tautan antrean.
+  Strip sengaja BUKAN Card supaya `group/card` tetap 12 sesuai kunci tes UI-2 —
+  dan mutasi "bungkus strip jadi Card" terbukti ditangkap **kedua** tes (baru +
+  lama). 4 tes baru; 3 mutasi tertangkap. Kolom Keputusan `—`: tidak ada keputusan
+  pemilik baru, hanya reorganisasi presentasi angka §5.2 yang sudah wajib ada.
+- **UI-8 B2b selesai (2026-10-15): verifikasi.** Bar aksi massal menempel
+  (`sticky bottom-3 z-20` + `shadow-lg` pada Card pembungkus; isi badge + 2 tombol
+  tidak berubah) dan foto mini 40px → 56px (src + aria-label tidak berubah).
+  3 tes baru; 2 mutasi tertangkap. **Kesalahan sendiri yang diperbaiki:** komentar
+  JSX `{/* */}` yang saya taruh di dalam ternary berdampingan dengan `<Button>`
+  tanpa pembungkus = syntax error (bukan kegagalan tes). Komentar dipindah ke
+  luar ternary. Pelajaran: komentar JSX adalah expression — dua expression
+  berdampingan tetap butuh pembungkus.
+- **UI-8 B2c selesai (2026-10-15): jadwal.** Kolom weekend (header + sel isi)
+  berpita `bg-muted/50`; teks "(Weekend)" tetap sehingga warna bukan satu-satunya
+  pembeda (§1.3). Cakupan dikoreksi jujur di tengah jalan: kolom lengket, label
+  Weekend, dan badge Khusus **sudah ada** — bukan saya yang membuatnya. 2 tes baru;
+  2 mutasi tertangkap (pita hilang; pita bocor ke weekday). **Jebakan tes:** assertion
+  `not.toMatch(/bg-muted\/50/)` terhadap SELURUH isi sel selalu gagal karena kelas
+  `dark:hover:bg-muted/50` milik Button ikut kecocokkan — yang diperiksa harus TAG
+  PEMBUKANYA saja. Persis keluarga jebakan `disabled:`/`text-xs` yang sudah tercatat.
+- **UI-8 B2d selesai (2026-10-15): rekap.** Tiga heading penanda urutan ("1. Filter"
+  sebagai judul kartu — override kecilnya dibuang sehingga memakai basis text-lg;
+  "2. Pemeriksaan" + "3. Pratinjau & unduh" sebagai h2). Isi, href terfilter, dan
+  status disabled tombol tidak berubah — dibuktikan tes lama UI-2/M8 yang tetap
+  hijau tanpa diubah. 3 tes baru (termasuk urutan lewat posisi indeks, bukan
+  sekadar keberadaan teks); 2 mutasi tertangkap (heading hilang; nomor tertukar).
+- **UI-8 B2e selesai (2026-10-15): halaman karyawan.** Tombol "Foto" dan "Absen"
+  pakai `KELAS_UTAMA` (h-14/56px, text-lg/18px, semibold); "Ganti Kamera",
+  "Foto Ulang", "Muat Ulang" tetap `KELAS_SENTUH` — kontras ukuran = hierarki
+  (§3.1 satu tugas satu tombol utama). Cakupan dikoreksi jujur: timeline riwayat
+  dan tombol lebih besar "untuk semua" BATAL — `DaftarRiwayat` terkunci sebagai
+  Card oleh tes UI-3 (keputusan BUG-UI-07) dan KELAS_SENTUH terkunci persis oleh
+  tes 44px. 3 tes baru mengikuti preseden UI-3 (AbsenClient tak bisa di-render
+  SSR); 2 mutasi tertangkap, salah satunya menjatuhkan 2 tes sekaligus.
 - **Tabel milestone pernah basi (2026-10-15) — sudah disinkronkan.** Baris UI-1, UI-2, dan
   M10 masih tertulis "prompt siap" padahal ketiganya sudah selesai dan ter-commit
   (`9abe8d1`, `adbb000`), dan UI-6/UI-7 **tidak punya baris sama sekali**. `rules/21` §A
@@ -556,7 +603,13 @@ Tidak ada yang terblokir — kolom keputusan menunjukkan keputusan yang dipakai.
 | UI-5D | Paginasi di `master/*` dan `akun` (repo belum punya `LIMIT`) | `rules/05` §6 | belum — butuh perubahan query |
 | UI-6 | **Navigasi bawah halaman karyawan `/a/[token]`** — tepat 2 item (Absen, Agenda), menggantikan tab atas; status tab tetap state lokal, tanpa URL | K-67, `rules/05` §3b | **SELESAI** 2026-10-15 · 29 tes (`rules/23`) |
 | UI-7 | **Jadwal bulanan tidak lagi menggeser halaman** (`min-w-0` pada pembungkus konten sidebar) + toast `sonner` menggantikan `Alert` di halaman jadwal | — | **SELESAI** 2026-10-15 · 10 tes (`rules/24`) |
-| UI-8 | **Audit tampilan Fase A — READ-ONLY**: opsi palet + tipografi + peta token. Keluarannya **dokumen keputusan untuk pemilik**, bukan diff | — | **prompt siap** (`rules/25`) · belum dikerjakan |
+| UI-8 | **Audit tampilan Fase A — READ-ONLY**: opsi palet + tipografi + peta token. Keluarannya **dokumen keputusan untuk pemilik**, bukan diff | — | **SELESAI** 2026-10-15 · pemilik pilih B + tipografi 1 (`rules/25`) |
+| UI-8 B1 | **Fondasi: palet B + tipografi 1.** Token `globals.css` + hierarki judul di 4 komponen bersama. Tanpa ubah tata letak halaman, endpoint, atau server | K-69 | **SELESAI** 2026-10-15 · 10 tes baru |
+| UI-8 B2a | **Dashboard: strip ringkasan + fraksi per toko + tautan aksi.** Total dihitung di render dari data yang sama; strip bukan Card (12 group/card utuh); tanpa fetch/prop/endpoint baru | — | **SELESAI** 2026-10-15 · 4 tes baru |
+| UI-8 B2b | **Verifikasi: bar aksi massal menempel + foto mini 56px.** Sticky bottom-3 z-20 (di bawah dialog); isi bar (badge + 2 tombol) utuh; src/aria-label foto utuh | — | **SELESAI** 2026-10-15 · 3 tes baru |
+| UI-8 B2c | **Jadwal: pita latar kolom weekend.** Header + sel isi weekend `bg-muted/50`; teks "(Weekend)" tetap (warna bukan satu-satunya pembeda, §1.3) | — | **SELESAI** 2026-10-15 · 2 tes baru |
+| UI-8 B2d | **Rekap: alur 3 langkah eksplisit.** "1. Filter" (judul kartu), "2. Pemeriksaan" + "3. Pratinjau & unduh" (h2 berurutan); isi/href/disabled utuh | — | **SELESAI** 2026-10-15 · 3 tes baru |
+| UI-8 B2e | **Karyawan: aksi utama naik satu tingkat.** Foto + Absen pakai KELAS_UTAMA (h-14/56px, text-lg, semibold); sekunder tetap KELAS_SENTUH; alur K-52 + kunci font/target utuh | — | **SELESAI** 2026-10-15 · 3 tes baru |
 
 ## Yang paling mudah salah
 

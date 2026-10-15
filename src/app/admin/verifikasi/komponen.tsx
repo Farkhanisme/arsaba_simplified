@@ -251,8 +251,12 @@ export function PanelAksiMassal({
   onSetujui: () => void;
   onTolak: () => void;
 }) {
+  // UI-8 B2b: bar aksi MENEMPEL di bawah saat daftar panjang di-scroll — tanpa
+  // ini admin mencentang 20 baris lalu harus scroll ke atas untuk mengeksekusi.
+  // `bottom-3` (bukan `bottom-0`) supaya tidak menempel tepi viewport; z-20 di
+  // bawah dialog/lightbox. Struktur dalam (badge + 2 tombol) tidak berubah.
   return (
-    <Card className="border-primary/40 bg-primary/5">
+    <Card className="sticky bottom-3 z-20 border-primary/40 bg-primary/5 shadow-lg">
       <CardContent className="flex flex-wrap items-center gap-3">
         <Badge variant="default">{jumlah} dipilih</Badge>
         <Button size="sm" onClick={onSetujui}>
@@ -346,9 +350,11 @@ export function KartuVerifikasi({
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
         <div className="flex flex-wrap items-center gap-3">
+          {/* UI-8 B2b: foto mini 56px (bukan 40px) — cukup besar untuk menilai
+              foto tanpa selalu membuka lightbox, masih muat sebaris di kartu. */}
           {b.foto_file_id ? (
             <Button variant="ghost" size="icon-sm" onClick={onLihatFoto} aria-label={`Lihat foto ${b.id}`}>
-              <img src={`/api/foto/${b.id}`} alt="" width={40} height={40} className="size-10 rounded-md object-cover" />
+              <img src={`/api/foto/${b.id}`} alt="" width={56} height={56} className="size-14 rounded-md object-cover" />
             </Button>
           ) : (
             <span className="text-muted-foreground">—</span>

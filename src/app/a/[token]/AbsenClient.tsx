@@ -70,6 +70,15 @@ type StatusLokasi = { keadaan: 'TERSEDIA'; lat: number; lng: number } | { keadaa
 /** rules/05: target sentuh minimum 44x44 px. 48px memberi ruang aman. */
 const KELAS_SENTUH = 'h-12 text-base';
 
+/**
+ * UI-8 B2e: aksi UTAMA ("Foto" lalu "Absen") satu tingkat di atas tombol
+ * sekunder ("Ganti Kamera", "Foto Ulang") — 56px + teks 18px semibold, supaya
+ * satu tugas satu tombol utama (§3.1) terbaca sekilas di bawah matahari.
+ * Tombol sekunder SENGAJA tetap KELAS_SENTUH: kontras ukuran inilah hierarkinya.
+ * text-lg (18px) tetap di atas batas 16px halaman karyawan (§2).
+ */
+const KELAS_UTAMA = 'h-14 text-lg font-semibold';
+
 /** Bentuk minimal perangkat untuk memilih kamera — MediaDeviceInfo cocok langsung. */
 export interface PerangkatKamera {
   kind: string;
@@ -453,7 +462,7 @@ export default function AbsenClient({ infoAwal }: { infoAwal: InfoAbsen }) {
           ) : null}
 
           <div className="flex gap-2">
-            <Button className={`flex-1 ${KELAS_SENTUH}`} onClick={ambilFoto} disabled={mengirim || !stream || modalTerbuka}>
+            <Button className={`flex-1 ${KELAS_UTAMA}`} onClick={ambilFoto} disabled={mengirim || !stream || modalTerbuka}>
               <CameraIcon />Foto
             </Button>
             {bisaGanti !== false ? (
@@ -552,7 +561,7 @@ export function IsiModalFoto({
         <Button variant="outline" className={`flex-1 ${KELAS_SENTUH}`} onClick={onFotoUlang} disabled={mengirim}>
           <RotateCcwIcon />Foto Ulang
         </Button>
-        <Button className={`flex-1 ${KELAS_SENTUH}`} onClick={onKirim} disabled={mengirim}>
+        <Button className={`flex-1 ${KELAS_UTAMA}`} onClick={onKirim} disabled={mengirim}>
           {mengirim ? 'Mengirim…' : aksi === 'CHECKOUT' ? (<><CheckIcon />Absen Check-out</>) : (<><CheckIcon />Absen</>)}
         </Button>
       </div>

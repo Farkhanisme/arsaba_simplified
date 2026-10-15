@@ -23,5 +23,5 @@ export default function JudulHalaman({ peran }: { peran: Peran }) {
   const pathname = usePathname();
   const label = labelHalaman(pathname, peran);
 
-  return label ? <h1 className="truncate text-base font-semibold">{label}</h1> : null;
+  return label ? <h1 className="font-heading truncate text-lg font-semibold tracking-tight">{label}</h1> : null;
 }

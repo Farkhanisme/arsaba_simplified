@@ -171,7 +171,10 @@ export function GridJadwal({
             <TableRow>
               <TableHead className="sticky left-0 bg-card">Karyawan</TableHead>
               {data.rentang.map((r) => (
-                <TableHead key={r.tanggal} className="min-w-28">
+                // UI-8 B2c: kolom weekend punya pita latar, bukan cuma teks —
+                // teks "(Weekend)" tetap ada (§5.4 + kunci tes UI-2), warna
+                // tidak pernah jadi satu-satunya pembeda (§1.3).
+                <TableHead key={r.tanggal} className={r.weekend ? 'min-w-28 bg-muted/50' : 'min-w-28'}>
                   {r.hari.slice(0, 3)} {tanggalPendek(r.tanggal)}
                   {r.weekend ? ' (Weekend)' : ''}
                 </TableHead>
@@ -185,8 +188,10 @@ export function GridJadwal({
                 {data.rentang.map((r) => {
                   const j = petaJadwal.get(`${k.id}|${r.tanggal}`);
                   const boleh = ditempatkanPada(data.penempatan, k.id, r.tanggal);
+                  // Pita yang sama di sel isi, supaya kolom weekend terbaca
+                  // sebagai lajur saat grid di-scroll horizontal.
                   return (
-                    <TableCell key={r.tanggal}>
+                    <TableCell key={r.tanggal} className={r.weekend ? 'bg-muted/50' : undefined}>
                       <Button
                         type="button"
                         variant="ghost"

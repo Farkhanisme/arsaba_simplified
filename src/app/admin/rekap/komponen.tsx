@@ -55,8 +55,13 @@ export function PanelRekap({ data, mengunduh, onUnduh }: { data: DataRekap; meng
   if (pemeriksaan.jumlahMenunggu > 0) sebab.push(`${pemeriksaan.jumlahMenunggu} absensi menunggu verifikasi`);
   if (pemeriksaan.jumlahCheckinTerbuka > 0) sebab.push(`${pemeriksaan.jumlahCheckinTerbuka} check-in tanpa check-out`);
   if (pemeriksaan.jumlahAgendaMenunggu > 0) sebab.push(`${pemeriksaan.jumlahAgendaMenunggu} laporan agenda menunggu verifikasi`);
+  // UI-8 B2d: alur 3 langkah eksplisit — filter (di FilterRekap) → pemeriksaan →
+  // pratinjau & unduh. Sebelumnya ketiganya tampil datar tanpa penanda urutan
+  // dan pengguna baru tidak tahu harus mulai dari mana. Hanya heading;
+  // isi, href, dan status disabled tidak berubah.
   return (
     <div className="flex flex-col gap-3">
+      <h2 className="text-base font-semibold">2. Pemeriksaan</h2>
       {pemeriksaan.boleh ? (
         <Alert className="border-green-300 bg-green-50 text-green-900 dark:border-green-800 dark:bg-green-950 dark:text-green-100">
           <AlertDescription>Semua absensi dan agenda pada periode ini sudah diverifikasi.</AlertDescription>
@@ -85,6 +90,7 @@ export function PanelRekap({ data, mengunduh, onUnduh }: { data: DataRekap; meng
           </AlertDescription>
         </Alert>
       ) : null}
+      <h2 className="text-base font-semibold">3. Pratinjau &amp; unduh</h2>
       <Card>
         <CardContent className="p-0">
           <Table>
@@ -146,7 +152,7 @@ export function FilterRekap({
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-sm font-normal text-muted-foreground">Filter rekap</CardTitle>
+        <CardTitle>1. Filter</CardTitle>
       </CardHeader>
       <CardContent className="flex flex-wrap items-end gap-3">
         <div className="flex flex-col gap-1.5">
