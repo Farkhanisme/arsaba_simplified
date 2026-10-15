@@ -485,6 +485,17 @@ dokumen; tugas agen adalah **menerjemahkan dokumen menjadi kode tanpa mengarang 
   fixture satu-toko-sempurna memberi angka sama (1) untuk benar dan terbalik.
   Perbaikannya: dua toko sempurna (2 lawan 1). Pelajaran: **fixture harus membuat
   mutasi mengubah angka**, bukan cuma mengubah jalan.
+- **UI-8 B2f selesai lalu DIGANTI B2g (2026-10-15): dashboard.** B2f (16 kartu)
+  ditolak pemilik dengan diagnosa tepat: "seperti papan catur dengan banyak
+  card". B2g menjawab akarnya: 3 kartu (1 ringkasan 4 stat + 1 antrean 2 baris
+  aksi + 1 tabel 10 baris dengan `th scope="row"`, header STATIS sesuai keputusan
+  UI-5B untuk daftar pendek). Ini butuh amandemen `rules/05` §5.2 ("satu kartu
+  per toko") → tercatat sebagai **K-70**, bukan diam-diam. Kunci kartu diperbarui
+  jadi 3 dan kunci aria-label diganti th-scope di UI-2 + M7, semuanya DENGAN
+  alasan tertulis. 6 tes baru; 3 mutasi tertangkap (total +1; lengkap dibalik;
+  scope=row hilang — yang terakhir dijatuhkan ketiga berkas tes). Temuan
+  audit-sambil-jalan: kartu baru sempat tanpa `CardHeader` — cacat desain
+  (kartu tanpa judul), diperbaiki sebelum commit.
 - **UI-8 B2b selesai (2026-10-15): verifikasi.** Bar aksi massal menempel
   (`sticky bottom-3 z-20` + `shadow-lg` pada Card pembungkus; isi badge + 2 tombol
   tidak berubah) dan foto mini 40px → 56px (src + aria-label tidak berubah).
@@ -611,7 +622,8 @@ Tidak ada yang terblokir — kolom keputusan menunjukkan keputusan yang dipakai.
 | UI-8 | **Audit tampilan Fase A — READ-ONLY**: opsi palet + tipografi + peta token. Keluarannya **dokumen keputusan untuk pemilik**, bukan diff | — | **SELESAI** 2026-10-15 · pemilik pilih B + tipografi 1 (`rules/25`) |
 | UI-8 B1 | **Fondasi: palet B + tipografi 1.** Token `globals.css` + hierarki judul di 4 komponen bersama. Tanpa ubah tata letak halaman, endpoint, atau server | K-69 | **SELESAI** 2026-10-15 · 10 tes baru |
 | UI-8 B2a | ~~Strip ringkasan non-Card~~ → **diganti B2f** (keputusan dibalik sadar, tes lama dihapus dengan alasan) | — | diganti 2026-10-15 |
-| UI-8 B2f | **REDESAIN dashboard (disetujui pemilik).** 4 kartu ringkasan + 2 kartu antrean aksi + 10 kartu toko hero + grafik di bawah. 16 group/card; DataDashboard utuh | — | **SELESAI** 2026-10-15 · 5 tes baru |
+| UI-8 B2f | ~~16 kartu~~ → **diganti B2g** (pemilik: masih seperti papan catur) | — | diganti 2026-10-15 |
+| UI-8 B2g | **Dashboard TABEL (K-70, amandemen §5.2).** 3 kartu: ringkasan + antrean + tabel 10 baris (th scope=row, header statis). DataDashboard utuh | — | **SELESAI** 2026-10-15 · 6 tes baru |
 | UI-8 B2b | **Verifikasi: bar aksi massal menempel + foto mini 56px.** Sticky bottom-3 z-20 (di bawah dialog); isi bar (badge + 2 tombol) utuh; src/aria-label foto utuh | — | **SELESAI** 2026-10-15 · 3 tes baru |
 | UI-8 B2c | **Jadwal: pita latar kolom weekend.** Header + sel isi weekend `bg-muted/50`; teks "(Weekend)" tetap (warna bukan satu-satunya pembeda, §1.3) | — | **SELESAI** 2026-10-15 · 2 tes baru |
 | UI-8 B2d | **Rekap: alur 3 langkah eksplisit.** "1. Filter" (judul kartu), "2. Pemeriksaan" + "3. Pratinjau & unduh" (h2 berurutan); isi/href/disabled utuh | — | **SELESAI** 2026-10-15 · 3 tes baru |

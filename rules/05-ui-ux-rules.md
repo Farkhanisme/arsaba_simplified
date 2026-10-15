@@ -163,8 +163,9 @@ Username, password, tombol Masuk. Pesan gagal generik: "Username atau password s
 
 ### 5.2 Dashboard
 - Tanggal tetap "Hari ini" (tanpa pemilih tanggal di versi 1).
-- Satu kartu per toko (10 kartu): Terjadwal · Sudah absen · Terlambat · Belum absen. Definisi mengikuti `02` §12.
-- Kartu tersendiri **Antrean verifikasi**: jumlah `MENUNGGU`, tautan ke Verifikasi.
+- **Satu kartu ringkasan**: 4 stat (Sudah absen + bar · Terlambat · Belum absen · Toko lengkap), total = jumlah kolom.
+- **Satu kartu antrean**: 2 baris aksi (verifikasi absensi + verifikasi agenda), masing-masing jumlah `MENUNGGU` + tombol ke halaman Verifikasi.
+- **Satu kartu tabel 10 baris** (K-70, menggantikan "satu kartu per toko"): kolom Toko (`th scope=row`) · Sudah absen (fraksi + bar) · Status (badge pengecualian atau ✓ Lengkap) · Agenda (teks selebar tampilan kartu lama). Header tabel statis (10 baris muat tanpa scroll). Definisi angka mengikuti `02` §12.
 - Kartu berwarna netral; angka "Belum absen" dan "Terlambat" diberi penekanan.
 
 ### 5.3 Verifikasi Absensi

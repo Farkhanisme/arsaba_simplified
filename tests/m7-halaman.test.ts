@@ -27,13 +27,13 @@ function dataSepuluhToko() {
 }
 
 describe('halaman /admin benar-benar bisa dirender', () => {
-  it('menampilkan 10 kartu + antrean dengan tautan, tanpa pemilih tanggal', async () => {
+  it('menampilkan 10 baris toko + antrean dengan tautan, tanpa pemilih tanggal', async () => {
     const { renderToStaticMarkup } = await import('react-dom/server');
     const { createElement } = await import('react');
     const html = renderToStaticMarkup(createElement(PanelDashboard, { data: dataSepuluhToko() }));
 
-    // Tepat 10 kartu toko.
-    expect(html.match(/aria-label="Toko /g) ?? []).toHaveLength(10);
+    // K-70: tepat 10 baris toko (th scope=row) dalam satu kartu tabel.
+    expect(html.match(/<th[^>]*scope="row"/g) ?? []).toHaveLength(10);
     expect(html).toContain('Toko 10');
     // Kartu antrean dengan tautan ke Verifikasi (rules/05 §5.2).
     expect(html).toContain('Antrean verifikasi');

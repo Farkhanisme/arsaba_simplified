@@ -36,15 +36,21 @@ function render(node: Parameters<typeof renderToStaticMarkup>[0]): string {
   return renderToStaticMarkup(node);
 }
 
-describe('PanelDashboard isi wajib §5.2', () => {
-  it('10 kartu + antrean + tautan verifikasi + 4 angka', () => {
+describe('PanelDashboard isi wajib §5.2 (amandemen K-70: tabel, bukan kartu toko)', () => {
+  it('10 baris toko + antrean + tautan verifikasi + 4 angka', () => {
     const html = render(h(PanelDashboard, { data: dataSepuluhToko() }));
-    expect(html.match(/aria-label="Toko /g) ?? []).toHaveLength(10);
+    // K-70: satu kartu tabel menggantikan 10 kartu. Baris memakai th scope=row
+    // (semantik tabel yang benar), bukan aria-label per kartu.
+    expect(html.match(/<th[^>]*scope="row"/g) ?? []).toHaveLength(10);
+    expect(html).not.toContain('aria-label="Toko ');
     expect(html).toContain('Antrean verifikasi');
     expect(html).toContain('href="/admin/verifikasi"');
     expect(html).toContain('Buka Verifikasi');
     for (const label of ['Terjadwal', 'Sudah absen', 'Terlambat', 'Belum absen']) {
       expect(html, `label ${label}`).toContain(label);
+    }
+    for (const kolom of ['>Toko<', '>Status<', '>Agenda<']) {
+      expect(html, `kolom ${kolom}`).toContain(kolom);
     }
     expect(html).toContain('Jumat, 3 Okt 2026');
     expect(html).not.toContain('type="date"');
@@ -68,11 +74,11 @@ describe('PanelDashboard isi wajib §5.2', () => {
 
   it('kartu memakai Card shadcn: group/card + header + content', () => {
     const html = render(h(PanelDashboard, { data: dataSepuluhToko() }));
-    // REDESAIN B2f (disetujui pemilik): 10 kartu toko + 2 kartu antrean +
-    // 4 kartu ringkasan = 16. Angka 12 yang lama BUKAN dilonggarkan — ia
-    // diganti karena 4 kartu memang ditambahkan sengaja. Kalau jumlah ini
-    // berubah lagi tanpa kartu baru, tes ini harus gagal.
-    expect(html.match(/class="[^"]*(?<![-\w])group\/card(?![-\w])/g) ?? []).toHaveLength(16);
+    // K-70 (amandemen §5.2, disetujui pemilik): 1 ringkasan + 1 antrean +
+    // 1 tabel = 3. Angka 16 B2f BUKAN dilonggarkan — 13 kartu memang dihapus
+    // sengaja karena "papan catur". Kalau jumlah ini berubah lagi tanpa
+    // perubahan wadah, tes ini harus gagal.
+    expect(html.match(/class="[^"]*(?<![-\w])group\/card(?![-\w])/g) ?? []).toHaveLength(3);
     expect(html).toContain('data-slot="card-header"');
     expect(html).toContain('data-slot="card-content"');
   });
