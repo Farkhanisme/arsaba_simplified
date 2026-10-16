@@ -2,11 +2,12 @@ import { describe, it, expect } from 'vitest';
 import { createElement as h } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import {
+  DaftarKartuLaporan,
   FilterVerifikasiAgenda,
   IsiDialogTolakLaporan,
+  IsiLightboxBanding,
+  KartuLaporanAgenda,
   LabelStatusLaporan,
-  PanelFotoLaporan,
-  TabelLaporanAgenda,
   tanggalPendek,
   type BarisLaporanAgenda,
 } from '../src/app/admin/verifikasi-agenda/komponen';
@@ -47,39 +48,50 @@ describe('LabelStatusLaporan', () => {
   });
 });
 
-describe('PanelFotoLaporan (BR-G10, BR-G13)', () => {
-  it('tanpa foto menjelelaskan, bukan sel kosong', () => {
-    expect(render(h(PanelFotoLaporan, { id: 1, adaSebelum: false, adaSesudah: false }))).toContain('Tanpa foto');
+/**
+ * UI-8 lanjutan — tabel diganti kartu + lightbox banding. Tes PanelFotoLaporan
+ * dan TabelLaporanAgenda di bawah ini DIGANTI, bukan dihapus diam-diam,
+ * mengikuti preseden B2f: tautan teks "Foto before/after" (buka tab baru)
+ * diganti thumbnail yang membuka lightbox banding di tempat. Perilaku yang
+ * dikunci TIDAK berubah: fallback "Tanpa foto", URL proxy (bukan Telegram),
+ * dan larangan kolom BR-G13.
+ */
+describe('Foto laporan di kartu (BR-G10, BR-G13)', () => {
+  function kartu(id: number, foto: { sebelum: boolean; sesudah: boolean }, r?: Partial<BarisLaporanAgenda>) {
+    return h(KartuLaporanAgenda, {
+      r: laporan({ id, ...r }),
+      adaFoto: () => foto,
+      onLihatFoto: TIDAK_ADA,
+      onSetujui: TIDAK_ADA,
+      onTolak: TIDAK_ADA,
+    });
+  }
+
+  it('tanpa foto menjelaskan, bukan ruang kosong', () => {
+    expect(render(kartu(1, { sebelum: false, sesudah: false }))).toContain('Tanpa foto');
   });
 
-  it('hanya foto before -> hanya tautan before', () => {
-    const html = render(h(PanelFotoLaporan, { id: 7, adaSebelum: true, adaSesudah: false }));
+  it('hanya foto before -> hanya thumbnail before', () => {
+    const html = render(kartu(7, { sebelum: true, sesudah: false }));
     expect(html).toContain('/api/foto/agenda/7?foto=sebelum');
     expect(html).not.toContain('foto=sesudah');
   });
 
-  it('dua foto -> dua tautan', () => {
-    const html = render(h(PanelFotoLaporan, { id: 9, adaSebelum: true, adaSesudah: true }));
+  it('dua foto -> dua thumbnail berdampingan', () => {
+    const html = render(kartu(9, { sebelum: true, sesudah: true }));
     expect(html).toContain('/api/foto/agenda/9?foto=sebelum');
     expect(html).toContain('/api/foto/agenda/9?foto=sesudah');
   });
 
   it('URL Telegram tidak pernah muncul (token bot, rules/03 §7)', () => {
-    const html = render(h(PanelFotoLaporan, { id: 1, adaSebelum: true, adaSesudah: true }));
+    const html = render(kartu(1, { sebelum: true, sesudah: true }));
     expect(html).not.toContain('api.telegram.org');
   });
 
-  it('TIDAK punya kolom menit keterlambatan atau koordinat', () => {
-    // BR-G13: agenda tidak punya jadwal yang dibandingkan. Kalau kolom ini
-    // ditambahkan, baris akan selalu kosong dan admin akan mengisinya sendiri.
-    const html = render(
-      h(TabelLaporanAgenda, {
-        daftar: [{ id: 1, agenda_id: 1, karyawan_nama: 'A', toko_nama: 'T', tanggal: '2026-10-08', percobaan: 1, status: 'MENUNGGU', keterangan: null, dikirim_at: null, diverifikasi_nama: null, alasan_tolak: null }],
-        adaFoto: () => ({ sebelum: false, sesudah: false }),
-        onSetujui: TIDAK_ADA,
-        onTolak: TIDAK_ADA,
-      }),
-    );
+  it('TIDAK ada teks keterlambatan atau koordinat', () => {
+    // BR-G13: agenda tidak punya jadwal yang dibandingkan. Kalau teks ini
+    // ditambahkan, kartu akan selalu kosong dan admin akan mengisinya sendiri.
+    const html = render(kartu(1, { sebelum: false, sesudah: false }));
     expect(html).not.toContain('Keterlambatan');
     expect(html).not.toContain('Latitude');
     expect(html).not.toContain('Selisih');
@@ -103,33 +115,83 @@ function laporan(sebagian: Partial<BarisLaporanAgenda> = {}): BarisLaporanAgenda
   };
 }
 
-describe('TabelLaporanAgenda', () => {
-  it('kosok memberi pesan, bukan tabel kosong', () => {
-    const html = render(h(TabelLaporanAgenda, { daftar: [], adaFoto: () => ({ sebelum: false, sesudah: false }), onSetujui: TIDAK_ADA, onTolak: TIDAK_ADA }));
+describe('DaftarKartuLaporan (pengganti TabelLaporanAgenda)', () => {
+  function daftar(r: Partial<BarisLaporanAgenda> = {}, foto = { sebelum: false, sesudah: false }) {
+    return h(DaftarKartuLaporan, {
+      daftar: [laporan(r)],
+      adaFoto: () => foto,
+      onLihatFoto: TIDAK_ADA,
+      onSetujui: TIDAK_ADA,
+      onTolak: TIDAK_ADA,
+    });
+  }
+
+  it('kosong memberi pesan, bukan daftar kosong', () => {
+    const html = render(
+      h(DaftarKartuLaporan, { daftar: [], adaFoto: () => ({ sebelum: false, sesudah: false }), onLihatFoto: TIDAK_ADA, onSetujui: TIDAK_ADA, onTolak: TIDAK_ADA }),
+    );
     expect(html).toContain('Tidak ada laporan agenda');
     expect(html).not.toContain('<table');
   });
 
   it('menampilkan karyawan, toko, percobaan, dan alasan tolak', () => {
     const html = render(
-      h(TabelLaporanAgenda, {
-        daftar: [laporan({ status: 'DITOLAK', percobaan: 3, alasan_tolak: 'Kurang lengkap', diverifikasi_nama: 'Admin' })],
-        adaFoto: () => ({ sebelum: true, sesudah: true }),
-        onSetujui: TIDAK_ADA,
-        onTolak: TIDAK_ADA,
-      }),
+      daftar({ status: 'DITOLAK', percobaan: 3, alasan_tolak: 'Kurang lengkap', diverifikasi_nama: 'Admin' }, { sebelum: true, sesudah: true }),
     );
     expect(html).toContain('Andi');
     expect(html).toContain('Toko A');
     expect(html).toContain('Kurang lengkap');
     expect(html).toContain('oleh Admin');
     // Nomor percobaan ditampilkan sebagai angka, supaya percobaan berulang terlihat.
-    expect(html).toMatch(/>3</);
+    expect(html).toContain('Percobaan 3');
   });
 
   it('percobaan ke-1 tidak diberi label EXTRA', () => {
-    const html = render(h(TabelLaporanAgenda, { daftar: [laporan()], adaFoto: () => ({ sebelum: false, sesudah: false }), onSetujui: TIDAK_ADA, onTolak: TIDAK_ADA }));
+    const html = render(daftar());
     expect(html).not.toContain('Percobaan ke-');
+  });
+
+  it('kartu punya tombol Setujui dan Tolak', () => {
+    const html = render(daftar());
+    expect(html).toContain('Setujui');
+    expect(html).toContain('Tolak');
+  });
+});
+
+describe('IsiLightboxBanding', () => {
+  function banding(foto = { sebelum: true, sesudah: true }) {
+    return h(IsiLightboxBanding, {
+      r: laporan(),
+      adaFoto: foto,
+      onSetujui: TIDAK_ADA,
+      onTolak: TIDAK_ADA,
+      onBerikutnya: TIDAK_ADA,
+      onTutup: TIDAK_ADA,
+    });
+  }
+
+  it('before dan after berdampingan dalam satu dialog', () => {
+    const html = render(banding());
+    expect(html).toContain('Foto before');
+    expect(html).toContain('Foto after');
+    expect(html).toContain('/api/foto/agenda/1?foto=sebelum');
+    expect(html).toContain('/api/foto/agenda/1?foto=sesudah');
+    expect(html).not.toContain('api.telegram.org');
+  });
+
+  it('sisi yang tidak ada diganti teks, bukan gambar mati', () => {
+    const html = render(banding({ sebelum: true, sesudah: false }));
+    expect(html).toContain('/api/foto/agenda/1?foto=sebelum');
+    expect(html).not.toContain('foto=sesudah');
+    expect(html).toContain('Tanpa foto');
+  });
+
+  it('punya 4 tombol: Setujui, Tolak, Berikutnya, Tutup', () => {
+    const html = render(banding());
+    for (const t of ['Setujui', 'Tolak', 'Berikutnya', 'Tutup']) {
+      expect(html).toContain(t);
+    }
+    expect((html.match(/data-slot="button"/g) ?? []).length).toBe(4);
   });
 });
 

@@ -40,7 +40,11 @@ function kodeTanpaKomentar(teks: string): string {
 const HALAMAN_PANJANG = [
   'src/app/admin/audit-log/komponen.tsx',
   'src/app/admin/agenda/komponen.tsx',
-  'src/app/admin/verifikasi-agenda/komponen.tsx',
+  // 'src/app/admin/verifikasi-agenda/komponen.tsx' DIHAPUS dari daftar
+  // (UI-8 lanjutan): tabelnya diganti kartu, jadi tidak ada lagi pasangan
+  // maxH + sel sticky yang perlu dikunci. Mengikuti preseden B2f: tes yang
+  // bertentangan dengan keputusan desain baru diperbarui dengan alasan
+  // tertulis, bukan dibiarkan gagal atau dilonggarkan.
 ];
 
 /** Halaman yang daftar master-nya kecil — TIDAK boleh dapat scroll container. */
