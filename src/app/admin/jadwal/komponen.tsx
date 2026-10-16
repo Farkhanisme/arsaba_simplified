@@ -84,6 +84,75 @@ export function tanggalPendek(t: string): string {
   return `${d}/${m}/${y}`;
 }
 
+/**
+ * Tanggal hari ini dalam WIB sebagai `YYYY-MM-DD`.
+ *
+ * Dipakai HANYA sebagai penanda visual kolom ("Hari ini") — bukan dasar
+ * keputusan apa pun. Jam klien tetap dilarang untuk waktu absen; ini bukan
+ * waktu absen. `Intl` dengan `timeZone: 'Asia/Jakarta'` dipakai supaya benar
+ * di mesin mana pun, tanpa `getHours()`/`getDate()` yang mengikuti timezone
+ * mesin (bug B-13).
+ */
+export function tanggalHariIniWIB(sekarang: Date = new Date()): string {
+  const bagian = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Jakarta',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(sekarang);
+  return bagian;
+}
+
+/**
+ * Ringkasan grid yang sedang tampil — dihitung sisi klien dari `DataGrid`,
+ * tanpa API baru. `terisi` = sel yang punya baris jadwal; `khusus` dan
+ * `peringatan` dihitung dari barisnya.
+ */
+export function ringkasanGrid(data: DataGrid): {
+  totalSel: number;
+  terisi: number;
+  khusus: number;
+  peringatan: number;
+} {
+  return {
+    totalSel: data.karyawan.length * data.rentang.length,
+    terisi: data.jadwal.length,
+    khusus: data.jadwal.filter((j) => j.is_override === 1).length,
+    peringatan: data.jadwal.filter((j) => j.peringatan.length > 0).length,
+  };
+}
+
+/**
+ * Pita ringkasan grid. Bukan kartu — pita ringkasan, mengikuti pola halaman
+ * lain. Angka dipisah koma; tanpa pola `·` dan tanpa panah.
+ */
+export function PitaRingkasanJadwal({
+  terisi,
+  totalSel,
+  khusus,
+  peringatan,
+}: {
+  terisi: number;
+  totalSel: number;
+  khusus: number;
+  peringatan: number;
+}) {
+  return (
+    <section aria-label="Ringkasan jadwal" className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
+      <span>
+        <strong className="font-semibold tabular-nums">{terisi}</strong> dari{' '}
+        <strong className="font-semibold tabular-nums">{totalSel}</strong> sel terisi
+      </span>
+      <span>
+        <strong className="font-semibold tabular-nums">{khusus}</strong> khusus
+      </span>
+      <span>
+        <strong className="font-semibold tabular-nums">{peringatan}</strong> peringatan tumpang tindih
+      </span>
+    </section>
+  );
+}
+
 export function ditempatkanPada(
   p: DataGrid['penempatan'],
   kid: number,
@@ -155,14 +224,58 @@ export function GridJadwal({
   data,
   petaJadwal,
   onPilihSel,
+  fokusSel = null,
+  onFokusSel = () => {},
+  hariIni = tanggalHariIniWIB(),
 }: {
   data: DataGrid;
   petaJadwal: Map<string, BarisJadwal>;
   onPilihSel: (sel: { karyawan_id: number; tanggal: string }) => void;
+  /** Sel yang sedang memegang fokus roving. Null = sel pertama. */
+  fokusSel?: { karyawan_id: number; tanggal: string } | null;
+  onFokusSel?: (sel: { karyawan_id: number; tanggal: string }) => void;
+  /** Tanggal hari ini (WIB, YYYY-MM-DD). Hanya penanda visual kolom. */
+  hariIni?: string;
 }) {
   if (data.karyawan.length === 0) {
     return <p className="text-sm text-muted-foreground">Belum ada karyawan di toko ini.</p>;
   }
+
+  function gerak(
+    karyawanId: number,
+    tanggal: string,
+    tombol: string,
+  ): { karyawan_id: number; tanggal: string } | null {
+    const ki = data.karyawan.findIndex((k) => k.id === karyawanId);
+    const ti = data.rentang.findIndex((r) => r.tanggal === tanggal);
+    if (ki < 0 || ti < 0) return null;
+    let dk = 0;
+    let dt = 0;
+    if (tombol === 'ArrowRight') dt = 1;
+    else if (tombol === 'ArrowLeft') dt = -1;
+    else if (tombol === 'ArrowDown') dk = 1;
+    else if (tombol === 'ArrowUp') dk = -1;
+    else return null;
+    // Lewati sel yang tombolnya nonaktif (karyawan tidak ditempatkan pada
+    // tanggal itu): tombol nonaktif tidak bisa menerima fokus, jadi berhenti
+    // di sana berarti fokus hilang diam-diam.
+    let nk = ki + dk;
+    let nt = ti + dt;
+    while (nk >= 0 && nk < data.karyawan.length && nt >= 0 && nt < data.rentang.length) {
+      const bk = data.karyawan[nk]!;
+      const bt = data.rentang[nt]!;
+      if (ditempatkanPada(data.penempatan, bk.id, bt.tanggal)) {
+        return { karyawan_id: bk.id, tanggal: bt.tanggal };
+      }
+      nk += dk;
+      nt += dt;
+    }
+    return null;
+  }
+
+  const selPertama = { karyawan_id: data.karyawan[0]!.id, tanggal: data.rentang[0]?.tanggal ?? '' };
+  const aktif = fokusSel ?? selPertama;
+
   return (
     <Card>
       <CardContent className="p-0">
@@ -170,15 +283,26 @@ export function GridJadwal({
           <TableHeader>
             <TableRow>
               <TableHead className="sticky left-0 bg-card">Karyawan</TableHead>
-              {data.rentang.map((r) => (
-                // UI-8 B2c: kolom weekend punya pita latar, bukan cuma teks —
-                // teks "(Weekend)" tetap ada (§5.4 + kunci tes UI-2), warna
-                // tidak pernah jadi satu-satunya pembeda (§1.3).
-                <TableHead key={r.tanggal} className={r.weekend ? 'min-w-28 bg-muted/50' : 'min-w-28'}>
-                  {r.hari.slice(0, 3)} {tanggalPendek(r.tanggal)}
-                  {r.weekend ? ' (Weekend)' : ''}
-                </TableHead>
-              ))}
+              {data.rentang.map((r) => {
+                const iniHariIni = r.tanggal === hariIni;
+                return (
+                  // UI-8 B2c: kolom weekend punya pita latar, bukan cuma teks —
+                  // teks "(Weekend)" tetap ada (§5.4 + kunci tes UI-2), warna
+                  // tidak pernah jadi satu-satunya pembeda (§1.3).
+                  <TableHead
+                    key={r.tanggal}
+                    className={[
+                      'min-w-28',
+                      r.weekend ? 'bg-muted/50' : '',
+                      iniHariIni ? 'bg-primary/10' : '',
+                    ].join(' ')}
+                  >
+                    {r.hari.slice(0, 3)} {tanggalPendek(r.tanggal)}
+                    {r.weekend ? ' (Weekend)' : ''}
+                    {iniHariIni ? <Badge>Hari ini</Badge> : null}
+                  </TableHead>
+                );
+              })}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -190,16 +314,33 @@ export function GridJadwal({
                   const boleh = ditempatkanPada(data.penempatan, k.id, r.tanggal);
                   // Pita yang sama di sel isi, supaya kolom weekend terbaca
                   // sebagai lajur saat grid di-scroll horizontal.
+                  const iniFokus = aktif.karyawan_id === k.id && aktif.tanggal === r.tanggal;
+                  const iniHariIni = r.tanggal === hariIni;
                   return (
-                    <TableCell key={r.tanggal} className={r.weekend ? 'bg-muted/50' : undefined}>
+                    <TableCell
+                      key={r.tanggal}
+                      className={[r.weekend ? 'bg-muted/50' : '', iniHariIni ? 'bg-primary/5' : ''].join(' ')}
+                    >
                       <Button
                         type="button"
                         variant="ghost"
                         size="sm"
                         disabled={!boleh}
+                        tabIndex={iniFokus ? 0 : -1}
+                        data-sel={`${k.id}|${r.tanggal}`}
                         onClick={() => onPilihSel({ karyawan_id: k.id, tanggal: r.tanggal })}
+                        onFocus={() => onFokusSel({ karyawan_id: k.id, tanggal: r.tanggal })}
+                        onKeyDown={(e) => {
+                          const tujuan = gerak(k.id, r.tanggal, e.key);
+                          if (tujuan) {
+                            e.preventDefault();
+                            onFokusSel(tujuan);
+                          }
+                        }}
                         aria-label={`Jadwal ${k.nama} ${tanggalPendek(r.tanggal)}`}
-                        className="h-auto w-full justify-start whitespace-normal"
+                        // Sel terisi punya garis tepi kiri — pembeda BENTUK,
+                        // bukan cuma warna (§1.3). Sel kosong tetap polos.
+                        className={j ? 'h-auto w-full justify-start border-l-2 border-primary whitespace-normal' : 'h-auto w-full justify-start whitespace-normal'}
                       >
                         {j ? (
                           <span className="flex flex-col items-start gap-1 text-left">
@@ -207,7 +348,10 @@ export function GridJadwal({
                             <span className="flex items-center gap-1">
                               {j.is_override === 1 ? <Badge variant="outline"><StarIcon />Khusus</Badge> : null}
                               {j.peringatan.length > 0 ? (
-                                <span title="Jam slot saling tumpang tindih" className="inline-flex items-center text-amber-600 dark:text-amber-400"><TriangleAlertIcon /></span>
+                                <span title="Jam slot saling tumpang tindih" className="inline-flex items-center gap-1 text-amber-600 dark:text-amber-400">
+                                  <TriangleAlertIcon />
+                                  <span className="text-xs font-medium">Tumpang tindih</span>
+                                </span>
                               ) : null}
                             </span>
                           </span>
@@ -273,7 +417,7 @@ export function PanelSel({
   onBatalOverride: () => void;
 }) {
   return (
-    <Card className="max-w-2xl" aria-label="Panel sel">
+    <Card className="sticky bottom-3 z-20 max-w-2xl shadow-lg" aria-label="Panel sel">
       <CardHeader>
         <CardTitle>Jadwal {tanggalPendek(tanggal)}</CardTitle>
       </CardHeader>
@@ -468,6 +612,7 @@ export function PanelIsiMassal({
         <CardTitle>Isi massal</CardTitle>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
+        <h3 className="text-sm font-medium">1. Pilih karyawan, rentang, dan shift</h3>
         {adaData ? (
           <div className="flex max-h-40 flex-wrap gap-3 overflow-y-auto">
             {karyawanList.map((k) => (
@@ -554,6 +699,7 @@ export function PanelIsiMassal({
         </div>
         {pra ? (
           <div className="flex flex-col gap-2 text-sm">
+            <h3 className="text-sm font-medium">2. Pratinjau</h3>
             <p>
               {pra.baru.length} sel baru, {pra.dilewati.length} dilewati, {pra.ditimpa.length} ditimpa,{' '}
               {pra.ditolak.length} ditolak.
@@ -574,7 +720,12 @@ export function PanelIsiMassal({
             </div>
           </div>
         ) : null}
-        {hasilMassal ? <PanelHasilMassal hasil={hasilMassal} /> : null}
+        {hasilMassal ? (
+          <div className="flex flex-col gap-2">
+            <h3 className="text-sm font-medium">3. Hasil</h3>
+            <PanelHasilMassal hasil={hasilMassal} />
+          </div>
+        ) : null}
       </CardContent>
     </Card>
   );

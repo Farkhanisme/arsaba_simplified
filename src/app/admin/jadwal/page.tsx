@@ -14,7 +14,9 @@ import {
   PanelMemuatJadwal,
   PanelSel,
   PesanButuhTemplate,
+  PitaRingkasanJadwal,
   ditempatkanPada,
+  ringkasanGrid,
   type BarisJadwal,
   type BentukMassal,
   type DataGrid,
@@ -40,6 +42,7 @@ function HalamanJadwal() {
   const [galat, setGalat] = useState<string | null>(null);
   const [aksesDitolak, setAksesDitolak] = useState(false);
   const [sel, setSel] = useState<{ karyawan_id: number; tanggal: string } | null>(null);
+  const [fokusSel, setFokusSel] = useState<{ karyawan_id: number; tanggal: string } | null>(null);
   const [panelMode, setPanelMode] = useState<'lewati' | 'timpa'>('lewati');
   const [panelTemplate, setPanelTemplate] = useState('');
   const [ovSlots, setOvSlots] = useState<Slot[]>([{ nama: '', jam_mulai: '', jam_selesai: '' }]);
@@ -105,6 +108,48 @@ function HalamanJadwal() {
   }, [data]);
 
   const jadwalSel = sel ? petaJadwal.get(`${sel.karyawan_id}|${sel.tanggal}`) ?? null : null;
+
+  const ringkasan = useMemo(() => (data ? ringkasanGrid(data) : null), [data]);
+
+  function fokusKeSel(s: { karyawan_id: number; tanggal: string }) {
+    const el = document.querySelector<HTMLElement>(`[data-sel="${s.karyawan_id}|${s.tanggal}"]`);
+    if (!el) return;
+    el.focus({ preventScroll: true });
+    const kurangiGerakan = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    el.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: kurangiGerakan ? 'auto' : 'smooth' });
+  }
+
+  function tutupPanel(kembalikanFokus = true) {
+    const s = sel;
+    setSel(null);
+    setOvBaru(false);
+    if (kembalikanFokus && s) fokusKeSel(s);
+  }
+
+  // Fokus mengikuti sel aktif dari navigasi panah di grid.
+  useEffect(() => {
+    if (fokusSel) fokusKeSel(fokusSel);
+  }, [fokusSel]);
+
+  // Escape menutup panel sel dan mengembalikan fokus ke selnya.
+  useEffect(() => {
+    function saatTombol(e: KeyboardEvent) {
+      if (e.key !== 'Escape' || e.ctrlKey || e.metaKey || e.altKey) return;
+      const target = e.target as HTMLElement | null;
+      if (
+        target !== null &&
+        (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT')
+      ) {
+        return;
+      }
+      if (sel) {
+        e.preventDefault();
+        tutupPanel(true);
+      }
+    }
+    window.addEventListener('keydown', saatTombol);
+    return () => window.removeEventListener('keydown', saatTombol);
+  }, [sel]);
 
   async function simpanSel() {
     if (!sel || !panelTemplate) return;
@@ -220,15 +265,28 @@ function HalamanJadwal() {
       ) : !data ? (
         <p className="text-sm text-muted-foreground">Pilih toko untuk melihat jadwal.</p>
       ) : (
-        <GridJadwal
-          data={data}
-          petaJadwal={petaJadwal}
-          onPilihSel={(s) => {
-            setSel(s);
-            setOvBaru(false);
-            setPanelTemplate('');
-          }}
-        />
+        <>
+          {ringkasan ? (
+            <PitaRingkasanJadwal
+              terisi={ringkasan.terisi}
+              totalSel={ringkasan.totalSel}
+              khusus={ringkasan.khusus}
+              peringatan={ringkasan.peringatan}
+            />
+          ) : null}
+          <GridJadwal
+            data={data}
+            petaJadwal={petaJadwal}
+            fokusSel={fokusSel}
+            onFokusSel={setFokusSel}
+            onPilihSel={(s) => {
+              setSel(s);
+              setFokusSel(s);
+              setOvBaru(false);
+              setPanelTemplate('');
+            }}
+          />
+        </>
       )}
 
       {templateList.length === 0 && tokoId ? <PesanButuhTemplate /> : null}
@@ -253,10 +311,7 @@ function HalamanJadwal() {
             setOvCatatan(jadwalSel?.catatan ?? '');
           }}
           onKembaliStandar={() => kembaliStandar(panelTemplate)}
-          onTutup={() => {
-            setSel(null);
-            setOvBaru(false);
-          }}
+          onTutup={() => tutupPanel(true)}
           onUbahOvSlots={setOvSlots}
           onUbahOvCatatan={setOvCatatan}
           onTambahSlot={() => setOvSlots([...ovSlots, { nama: '', jam_mulai: '', jam_selesai: '' }])}
