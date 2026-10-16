@@ -242,6 +242,186 @@ export function PanelFilterVerifikasi({
   );
 }
 
+/**
+ * Pita ringkasan antrean (UI-8 B2 lanjutan — fokus antrean).
+ *
+ * Bukan kartu: pita ringkasan, bukan momen visual baru. Tiga angka dihitung
+ * dari daftar yang sedang tampil (sudah terfilter server), dipisah koma —
+ * tanpa pola `·` dan tanpa panah.
+ */
+export function PitaAntrean({
+  menunggu,
+  terpilih,
+  belumCheckout,
+  onBantuan,
+}: {
+  menunggu: number;
+  terpilih: number;
+  belumCheckout: number;
+  onBantuan: () => void;
+}) {
+  return (
+    <section aria-label="Ringkasan antrean" className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
+      <span>
+        <strong className="font-semibold tabular-nums">{menunggu}</strong> menunggu
+      </span>
+      <span>
+        <strong className="font-semibold tabular-nums">{terpilih}</strong> terpilih
+      </span>
+      <span>
+        <strong className="font-semibold tabular-nums">{belumCheckout}</strong> check-in belum check-out
+      </span>
+      <Button type="button" size="sm" variant="ghost" onClick={onBantuan} aria-label="Bantuan pintasan keyboard">
+        Pintasan keyboard (?)
+      </Button>
+    </section>
+  );
+}
+
+/**
+ * Definisi server untuk chip "check-in belum check-out"
+ * (`src/server/repo/verifikasi.ts`): CHECKIN yang TIDAK punya CHECKOUT
+ * non-DITOLAK dengan `checkin_id` merujuknya. Fungsi ini padanannya di sisi
+ * klien, supaya angka di `PitaAntrean` konsisten dengan filter server.
+ */
+export function hitungBelumCheckout(daftar: Baris[]): number {
+  return daftar.filter(
+    (b) =>
+      b.jenis === 'CHECKIN' &&
+      !daftar.some((c) => c.jenis === 'CHECKOUT' && c.checkin_id === b.id && c.status !== 'DITOLAK'),
+  ).length;
+}
+
+/**
+ * Paginasi sisi klien (UI-8 B2 lanjutan).
+ *
+ * API `GET /api/admin/verifikasi` tidak punya `limit`/`offset`, jadi halaman
+ * dipotong di sini dari daftar yang sudah diambil — tanpa mengubah API maupun
+ * arti filter. Pilihan checkbox dipertahankan lintas halaman (state `pilih`
+ * hidup di `page.tsx`, bukan di sini).
+ */
+export function potongHalaman<T>(daftar: T[], halaman: number, ukuran: number): T[] {
+  if (ukuran <= 0) return daftar;
+  const mulai = (Math.max(1, halaman) - 1) * ukuran;
+  return daftar.slice(mulai, mulai + ukuran);
+}
+
+export function infoHalaman(
+  total: number,
+  halaman: number,
+  ukuran: number,
+): { awal: number; akhir: number; totalHalaman: number } {
+  if (total === 0 || ukuran <= 0) return { awal: 0, akhir: 0, totalHalaman: 1 };
+  const totalHalaman = Math.max(1, Math.ceil(total / ukuran));
+  const halamanAktif = Math.min(Math.max(1, halaman), totalHalaman);
+  const awal = (halamanAktif - 1) * ukuran + 1;
+  return { awal, akhir: Math.min(awal + ukuran - 1, total), totalHalaman };
+}
+
+const UKURAN_HALAMAN = [10, 20, 50] as const;
+
+export function KontrolHalaman({
+  halaman,
+  total,
+  ukuran,
+  onHalaman,
+  onUkuran,
+}: {
+  halaman: number;
+  total: number;
+  ukuran: number;
+  onHalaman: (halaman: number) => void;
+  onUkuran: (ukuran: number) => void;
+}) {
+  const { awal, akhir, totalHalaman } = infoHalaman(total, halaman, ukuran);
+  return (
+    <div aria-label="Halaman daftar" className="flex flex-wrap items-center gap-3 text-sm">
+      <label htmlFor="ukuran-halaman" className="font-medium">
+        Baris per halaman
+      </label>
+      <NativeSelect
+        id="ukuran-halaman"
+        value={String(ukuran)}
+        onChange={(e) => onUkuran(Number(e.target.value))}
+        className="w-24"
+      >
+        {UKURAN_HALAMAN.map((u) => (
+          <NativeSelectOption key={u} value={String(u)}>
+            {u}
+          </NativeSelectOption>
+        ))}
+      </NativeSelect>
+      <span className="text-muted-foreground tabular-nums" aria-live="polite">
+        Menampilkan {awal}–{akhir} dari {total}
+      </span>
+      <span className="ml-auto flex items-center gap-2">
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          disabled={halaman <= 1}
+          onClick={() => onHalaman(halaman - 1)}
+          aria-label="Halaman sebelumnya"
+        >
+          Sebelumnya
+        </Button>
+        <span className="tabular-nums" aria-label={`Halaman ${halaman} dari ${totalHalaman}`}>
+          {halaman} / {totalHalaman}
+        </span>
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          disabled={halaman >= totalHalaman}
+          onClick={() => onHalaman(halaman + 1)}
+          aria-label="Halaman berikutnya"
+        >
+          Berikutnya
+        </Button>
+      </span>
+    </div>
+  );
+}
+
+/**
+ * Isi dialog bantuan pintasan keyboard. Dipisah dari Dialog (tanpa portal)
+ * supaya bisa dirender dan diuji statis, mengikuti pola `IsiDialogTolak`.
+ */
+export function IsiBantuanPintasan({ onTutup }: { onTutup: () => void }) {
+  const pintasan: [string, string][] = [
+    ['J / K', 'Pindah ke kartu berikutnya / sebelumnya'],
+    ['A', 'Setujui kartu yang sedang aktif'],
+    ['T', 'Buka dialog tolak untuk kartu yang sedang aktif'],
+    ['C', 'Buka koreksi untuk kartu yang sedang aktif'],
+    ['?', 'Buka bantuan ini'],
+    ['Esc', 'Tutup dialog'],
+  ];
+  return (
+    <>
+      <h2 className="text-base font-medium">Pintasan keyboard</h2>
+      <p className="text-sm text-muted-foreground">
+        Pintasan hanya aktif di luar kolom isian dan di luar dialog. Fokus yang
+        terlihat selalu mengikuti kartu yang aktif.
+      </p>
+      <ul className="flex flex-col gap-2 text-sm">
+        {pintasan.map(([tombol, arti]) => (
+          <li key={tombol} className="flex items-center gap-3">
+            <kbd className="min-w-16 rounded-md border bg-muted px-2 py-1 text-center font-mono text-xs">
+              {tombol}
+            </kbd>
+            <span>{arti}</span>
+          </li>
+        ))}
+      </ul>
+      <div className="flex justify-end gap-2">
+        <Button type="button" variant="outline" onClick={onTutup}>
+          Tutup
+        </Button>
+      </div>
+    </>
+  );
+}
+
 export function PanelAksiMassal({
   jumlah,
   onSetujui,
@@ -318,7 +498,7 @@ export function KartuVerifikasi({
   const jam = b.waktu.slice(11, 16);
   const terlambat = b.jenis === 'CHECKIN' && b.keterlambatan ? b.keterlambatan : null;
   return (
-    <Card data-slot="kartu-verifikasi" aria-label={`Absensi ${b.id}`}>
+    <Card data-slot="kartu-verifikasi" data-kartu-id={b.id} tabIndex={-1} aria-label={`Absensi ${b.id}`}>
       <CardHeader className="pb-2">
         <div className="flex flex-wrap items-center gap-2">
           <Checkbox

@@ -11,16 +11,22 @@ import {
 } from '@/components/ui/dialog';
 import { AksesDitolak, adalahAksesDitolak } from '../komponen';
 import {
+  IsiBantuanPintasan,
   IsiDialogKoreksi,
   IsiDialogTolak,
   IsiLightbox,
+  KontrolHalaman,
   PanelAksiMassal,
   PanelFilterVerifikasi,
   PanelGalat,
   PanelMemuat,
+  PitaAntrean,
   DaftarKartuVerifikasi,
   DaftarKosong,
+  hitungBelumCheckout,
+  infoHalaman,
   kelompokkan,
+  potongHalaman,
   type Baris,
   type FilterVerifikasi,
   type Pilihan,
@@ -42,6 +48,10 @@ function HalamanVerifikasi() {
   const [lightbox, setLightbox] = useState<number | null>(null);
   const [koreksi, setKoreksi] = useState<{ id: number; operasi: string; waktu: string; alasan: string } | null>(null);
   const [pesan, setPesan] = useState<string | null>(null);
+  const [halaman, setHalaman] = useState(1);
+  const [ukuranHalaman, setUkuranHalaman] = useState(20);
+  const [indeksAktif, setIndeksAktif] = useState(0);
+  const [bantuanTerbuka, setBantuanTerbuka] = useState(false);
 
   const query = params.toString();
 
@@ -77,6 +87,26 @@ function HalamanVerifikasi() {
   useEffect(() => {
     muat();
   }, [muat]);
+
+  // Filter berubah (query URL) -> kembali ke halaman pertama. Pilihan
+  // checkbox sengaja dipertahankan lintas halaman untuk alur massal.
+  useEffect(() => {
+    setHalaman(1);
+    setIndeksAktif(0);
+  }, [query]);
+
+  const daftarHalaman = useMemo(
+    () => potongHalaman(daftar, halaman, ukuranHalaman),
+    [daftar, halaman, ukuranHalaman],
+  );
+
+  // Halaman aktif tidak boleh melewati halaman terakhir (mis. setelah
+  // keputusan disimpan dan daftar menyusut).
+  const { totalHalaman } = infoHalaman(daftar.length, halaman, ukuranHalaman);
+  useEffect(() => {
+    if (halaman > totalHalaman) setHalaman(totalHalaman);
+    if (indeksAktif >= daftarHalaman.length) setIndeksAktif(0);
+  }, [halaman, totalHalaman, indeksAktif, daftarHalaman.length]);
 
   function aturParam(kunci: string, nilai: string) {
     const p = new URLSearchParams(params.toString());
@@ -178,7 +208,82 @@ function HalamanVerifikasi() {
     muat();
   }
 
-  const kelompok = useMemo(() => kelompokkan(daftar), [daftar]);
+  const kelompok = useMemo(() => kelompokkan(daftarHalaman), [daftarHalaman]);
+
+  const menunggu = useMemo(() => daftar.filter((b) => b.status === 'MENUNGGU').length, [daftar]);
+  const belumCheckout = useMemo(() => hitungBelumCheckout(daftar), [daftar]);
+
+  // Fokus mengikuti kartu aktif (J/K). `scrollIntoView` memakai perilaku
+  // halus kecuali pengguna meminta kurangi gerakan.
+  useEffect(() => {
+    const baris = daftarHalaman[indeksAktif];
+    if (!baris) return;
+    const el = document.querySelector<HTMLElement>(`[data-kartu-id="${baris.id}"]`);
+    if (!el) return;
+    el.focus({ preventScroll: true });
+    const kurangiGerakan = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    el.scrollIntoView({ block: 'nearest', behavior: kurangiGerakan ? 'auto' : 'smooth' });
+  }, [indeksAktif, daftarHalaman]);
+
+  // Pintasan keyboard untuk antrean. Nonaktif di dalam kolom isian dan saat
+  // dialog terbuka (kecuali Escape yang ditangani Dialog sendiri), supaya
+  // tidak menabrak pengetikan maupun pembaca layar.
+  useEffect(() => {
+    function saatTombol(e: KeyboardEvent) {
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      const target = e.target as HTMLElement | null;
+      const diIsian =
+        target !== null &&
+        (target.tagName === 'INPUT' ||
+          target.tagName === 'TEXTAREA' ||
+          target.tagName === 'SELECT' ||
+          target.isContentEditable);
+      const dialogTerbuka =
+        dialogTolak !== null || koreksi !== null || lightbox !== null || bantuanTerbuka;
+      if (diIsian || dialogTerbuka) return;
+      const baris = daftarHalaman[indeksAktif];
+      switch (e.key) {
+        case 'j':
+        case 'J':
+          e.preventDefault();
+          setIndeksAktif((i) => Math.min(i + 1, Math.max(0, daftarHalaman.length - 1)));
+          break;
+        case 'k':
+        case 'K':
+          e.preventDefault();
+          setIndeksAktif((i) => Math.max(i - 1, 0));
+          break;
+        case 'a':
+        case 'A':
+          if (baris) {
+            e.preventDefault();
+            void setujuiSatuan(baris.id);
+          }
+          break;
+        case 't':
+        case 'T':
+          if (baris) {
+            e.preventDefault();
+            setDialogTolak({ ids: [baris.id] });
+            setAlasanTolak('');
+          }
+          break;
+        case 'c':
+        case 'C':
+          if (baris) {
+            e.preventDefault();
+            setKoreksi({ id: baris.id, operasi: 'ubah_waktu', waktu: '', alasan: '' });
+          }
+          break;
+        case '?':
+          e.preventDefault();
+          setBantuanTerbuka(true);
+          break;
+      }
+    }
+    window.addEventListener('keydown', saatTombol);
+    return () => window.removeEventListener('keydown', saatTombol);
+  }, [daftarHalaman, indeksAktif, dialogTolak, koreksi, lightbox, bantuanTerbuka]);
 
   const barisLightbox = lightbox !== null ? daftar.find((b) => b.id === lightbox) ?? null : null;
   const indeksLightbox = lightbox !== null ? daftar.findIndex((b) => b.id === lightbox) : -1;
@@ -204,6 +309,30 @@ function HalamanVerifikasi() {
       ) : null}
 
       <PanelFilterVerifikasi nilai={filter} pilihan={pilihan} onUbah={aturParam} />
+
+      <PitaAntrean
+        menunggu={menunggu}
+        terpilih={pilih.length}
+        belumCheckout={belumCheckout}
+        onBantuan={() => setBantuanTerbuka(true)}
+      />
+
+      {daftar.length > 0 && !memuat && !galat && !aksesDitolak ? (
+        <KontrolHalaman
+          halaman={halaman}
+          total={daftar.length}
+          ukuran={ukuranHalaman}
+          onHalaman={(h) => {
+            setHalaman(h);
+            setIndeksAktif(0);
+          }}
+          onUkuran={(u) => {
+            setUkuranHalaman(u);
+            setHalaman(1);
+            setIndeksAktif(0);
+          }}
+        />
+      ) : null}
 
       {pilih.length > 0 ? (
         <PanelAksiMassal
@@ -246,6 +375,15 @@ function HalamanVerifikasi() {
       <p className="text-xs text-muted-foreground">
         Ambang terlambat sistem: {ambang} menit (diatur Super Admin di Pengaturan).
       </p>
+
+      <Dialog open={bantuanTerbuka} onOpenChange={(buka) => !buka && setBantuanTerbuka(false)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="sr-only">Bantuan pintasan keyboard</DialogTitle>
+          </DialogHeader>
+          <IsiBantuanPintasan onTutup={() => setBantuanTerbuka(false)} />
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={dialogTolak !== null} onOpenChange={(buka) => !buka && setDialogTolak(null)}>
         <DialogContent>
