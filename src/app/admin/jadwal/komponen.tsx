@@ -417,7 +417,7 @@ export function PanelSel({
   onBatalOverride: () => void;
 }) {
   return (
-    <Card className="sticky bottom-3 z-20 max-w-2xl shadow-lg" aria-label="Panel sel">
+    <Card className="max-w-2xl" aria-label="Panel sel">
       <CardHeader>
         <CardTitle>Jadwal {tanggalPendek(tanggal)}</CardTitle>
       </CardHeader>

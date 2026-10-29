@@ -2,6 +2,7 @@
 
 import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { AksesDitolak, adalahAksesDitolak } from '../komponen';
 import { slotTumpangTindih } from '../../../server/aturan/shift';
 import { toast } from 'sonner';
@@ -291,35 +292,52 @@ function HalamanJadwal() {
 
       {templateList.length === 0 && tokoId ? <PesanButuhTemplate /> : null}
 
-      {sel && data ? (
-        <PanelSel
-          tanggal={sel.tanggal}
-          jadwalSel={jadwalSel}
-          templateCocok={data.templateCocok[sel.tanggal] ?? []}
-          panelTemplate={panelTemplate}
-          panelMode={panelMode}
-          ovBaru={ovBaru}
-          ovSlots={ovSlots}
-          ovCatatan={ovCatatan}
-          ovPeringatan={ovPeringatan}
-          onUbahTemplate={setPanelTemplate}
-          onUbahMode={setPanelMode}
-          onSimpan={simpanSel}
-          onMintaUbahKhusus={() => {
-            setOvBaru(true);
-            setOvSlots(jadwalSel ? jadwalSel.slot.map((s) => ({ ...s })) : [{ nama: '', jam_mulai: '', jam_selesai: '' }]);
-            setOvCatatan(jadwalSel?.catatan ?? '');
-          }}
-          onKembaliStandar={() => kembaliStandar(panelTemplate)}
-          onTutup={() => tutupPanel(true)}
-          onUbahOvSlots={setOvSlots}
-          onUbahOvCatatan={setOvCatatan}
-          onTambahSlot={() => setOvSlots([...ovSlots, { nama: '', jam_mulai: '', jam_selesai: '' }])}
-          onHapusSlot={(i) => setOvSlots(ovSlots.filter((_, xi) => xi !== i))}
-          onSimpanOverride={simpanOverride}
-          onBatalOverride={() => setOvBaru(false)}
-        />
-      ) : null}
+      {/* Panel edit sel tampil sebagai MODAL, bukan panel inline di bawah
+          grid: di tampilan bulan admin harus scroll jauh untuk mencapai panel
+          inline. Isi PanelSel tidak berubah — yang pindah hanya wadahnya.
+          Tutup sembarangan (klik-luar/Escape) membuang ketikan — disengaja
+          dan konsisten dengan seluruh dialog repo (keputusan pemilik). */}
+      <Dialog
+        open={sel !== null && data !== null}
+        onOpenChange={(buka) => {
+          if (!buka) tutupPanel(true);
+        }}
+      >
+        <DialogContent className="max-h-[85dvh] overflow-y-auto sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="sr-only">Ubah jadwal sel</DialogTitle>
+          </DialogHeader>
+          {sel && data ? (
+            <PanelSel
+              tanggal={sel.tanggal}
+              jadwalSel={jadwalSel}
+              templateCocok={data.templateCocok[sel.tanggal] ?? []}
+              panelTemplate={panelTemplate}
+              panelMode={panelMode}
+              ovBaru={ovBaru}
+              ovSlots={ovSlots}
+              ovCatatan={ovCatatan}
+              ovPeringatan={ovPeringatan}
+              onUbahTemplate={setPanelTemplate}
+              onUbahMode={setPanelMode}
+              onSimpan={simpanSel}
+              onMintaUbahKhusus={() => {
+                setOvBaru(true);
+                setOvSlots(jadwalSel ? jadwalSel.slot.map((s) => ({ ...s })) : [{ nama: '', jam_mulai: '', jam_selesai: '' }]);
+                setOvCatatan(jadwalSel?.catatan ?? '');
+              }}
+              onKembaliStandar={() => kembaliStandar(panelTemplate)}
+              onTutup={() => tutupPanel(true)}
+              onUbahOvSlots={setOvSlots}
+              onUbahOvCatatan={setOvCatatan}
+              onTambahSlot={() => setOvSlots([...ovSlots, { nama: '', jam_mulai: '', jam_selesai: '' }])}
+              onHapusSlot={(i) => setOvSlots(ovSlots.filter((_, xi) => xi !== i))}
+              onSimpanOverride={simpanOverride}
+              onBatalOverride={() => setOvBaru(false)}
+            />
+          ) : null}
+        </DialogContent>
+      </Dialog>
 
       <PanelIsiMassal
         karyawanList={data?.karyawan ?? []}

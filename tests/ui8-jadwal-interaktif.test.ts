@@ -198,8 +198,12 @@ describe('GridJadwal — roving tabindex', () => {
   });
 });
 
-describe('PanelSel menempel', () => {
-  it('kartu panel sticky di bawah dengan z di bawah dialog', () => {
+describe('PanelSel di dalam modal (bukan lagi panel inline)', () => {
+  // Keputusan pemilik: klik sel membuka Dialog berisi PanelSel, jadi sticky
+  // bottom-3 tidak lagi dipakai — sticky di dalam kontainer scroll dialog
+  // justru menempel aneh. Tes lama yang mengunci sticky DIHAPUS dan diganti
+  // yang ini (preseden B2f). Kontrak isi panel tetap dikunci ui2.
+  it('kartu panel tidak sticky lagi; label dan judul tetap', () => {
     const html = renderToStaticMarkup(
       h(PanelSel, {
         tanggal: '2026-10-13',
@@ -225,11 +229,10 @@ describe('PanelSel menempel', () => {
         onBatalOverride: tidakAda,
       }),
     );
-    expect(html).toMatch(/\bsticky\b/);
-    expect(html).toMatch(/\bbottom-3\b/);
-    expect(html).toMatch(/\bz-20\b/);
-    expect(html, 'di bawah z-50 dialog').not.toMatch(/\bz-50\b/);
+    expect(html, 'tidak lagi sticky (isi modal, bukan panel halaman)').not.toMatch(/\bsticky\b/);
+    expect(html, 'tidak lagi bottom-3').not.toMatch(/\bbottom-3\b/);
     expect(html).toContain('aria-label="Panel sel"');
+    expect(html).toContain('Jadwal 13/10/2026');
   });
 });
 
